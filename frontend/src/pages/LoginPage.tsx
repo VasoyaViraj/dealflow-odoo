@@ -59,9 +59,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-canvas lg:grid lg:grid-cols-[1fr_minmax(0,560px)]">
-      {/* ---- form column ------------------------------------------------ */}
-      <div className="flex flex-col min-h-screen">
+    <div className="min-h-screen bg-canvas flex flex-col">
         <header className="h-16 flex items-center justify-between px-6 lg:px-12 shrink-0">
           <Link to="/" className="flex items-center gap-2.5">
             <DealFlowMark size={26} />
@@ -159,42 +157,6 @@ export default function LoginPage() {
             </div>
           </div>
         </div>
-      </div>
-
-      {/* ---- signature panel -------------------------------------------- */}
-      <aside className="hidden lg:flex flex-col justify-between bg-dark text-white p-12">
-        <p className="type-eyebrow text-white/50">Deal desk, end to end</p>
-
-        <div>
-          <p className="text-[30px] leading-[1.25] font-light tracking-tight">
-            “The quote, the discount approval, the split shipment and the first
-            invoice all used to live in four systems. Now they're four states of
-            one record.”
-          </p>
-          <div className="mt-8 flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-peach text-ink flex items-center justify-center text-xs font-semibold">
-              RK
-            </div>
-            <div>
-              <p className="text-sm font-medium">Revenue Operations</p>
-              <p className="text-[13px] text-white/55">Mid-market hardware &amp; services</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-3 gap-6 pt-10 border-t border-white/15">
-          {[
-            { v: '4.2×', l: 'faster quote turnaround' },
-            { v: '<1 day', l: 'median approval time' },
-            { v: '0', l: 'reconciliation spreadsheets' },
-          ].map(s => (
-            <div key={s.l}>
-              <p className="text-[26px] font-light leading-none">{s.v}</p>
-              <p className="text-[12px] text-white/55 mt-2 leading-snug">{s.l}</p>
-            </div>
-          ))}
-        </div>
-      </aside>
     </div>
   );
 }

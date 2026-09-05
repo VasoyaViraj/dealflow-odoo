@@ -12,6 +12,9 @@ import { getProducts, getSubscriptionPlans } from '../lib/referenceData';
 import FulfillmentPanel from '../components/fulfillment/FulfillmentPanel';
 import { BillingOverview } from '../components/billing/BillingOverview';
 import type { SubscriptionPlan } from '../types/billing';
+import Loader from '../components/ui/Loader';
+import Pagination from '../components/ui/Pagination';
+import { SyncLoader } from 'react-spinners';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -141,7 +144,7 @@ function CreateQuotationModal({
             <div>
               <label className="block text-sm text-subtle mb-1.5 font-medium">Customer *</label>
               {fetching ? (
-                <div className="bg-soft border border-hairline rounded-lg px-3 py-2.5 text-sm text-subtle">Loading customers…</div>
+                <Loader loading={fetching} size={6} />
               ) : (
                 <select
                   value={customerId}
@@ -175,7 +178,7 @@ function CreateQuotationModal({
               disabled={loading || !customerId}
               className="flex-1 py-2.5 rounded-lg text-sm font-semibold bg-ink text-white transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? 'Creating…' : 'Create Quotation'}
+              {loading ? <SyncLoader color="#fff" size={6} margin={2} /> : 'Create Quotation'}
             </button>
           </div>
         </div>
@@ -188,12 +191,16 @@ function CreateQuotationModal({
 
 function QuotationListView({
   quotations, loading, onOpen, onNew, onRefresh,
+  currentPage, totalPages, onPageChange,
 }: {
   quotations: Quotation[];
   loading: boolean;
   onOpen: (q: Quotation) => void;
   onNew: () => void;
   onRefresh: () => void;
+  currentPage: number;
+  totalPages: number;
+  onPageChange: (p: number) => void;
 }) {
   const pending = quotations.filter(q => ['PENDING_MANAGER', 'PENDING_FINANCE'].includes(q.status)).length;
   const approved = quotations.filter(q => q.status === 'APPROVED').length;
@@ -239,9 +246,7 @@ function QuotationListView({
 
       {/* Quotation Cards */}
       {loading ? (
-        <div className="flex items-center justify-center py-32 text-subtle">
-          <RefreshCw size={20} className="animate-spin mr-3" /> Loading quotations…
-        </div>
+        <div className="py-20"><Loader loading={true} /></div>
       ) : quotations.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-32 text-center">
           <div className="w-16 h-16 rounded-lg bg-cream border border-hairline flex items-center justify-center mb-4">
@@ -293,6 +298,11 @@ function QuotationListView({
               </div>
             </div>
           ))}
+        </div>
+      )}
+      {!loading && quotations.length > 0 && (
+        <div className="mt-6">
+          <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={onPageChange} />
         </div>
       )}
     </div>
@@ -881,6 +891,8 @@ export default function SalesWorkspace() {
   const [quotations, setQuotations] = useState<Quotation[]>([]);
   const [selected, setSelected] = useState<Quotation | null>(null);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
 
@@ -889,16 +901,20 @@ export default function SalesWorkspace() {
     setTimeout(() => setToast(null), 3500);
   }, []);
 
-  const loadList = useCallback(async () => {
+  const loadList = useCallback(async (page = 1) => {
     setLoading(true);
     try {
-      const r = await api.get('/quotations', { params: { limit: 50 } });
+      const r = await api.get('/quotations', { params: { limit: 12, page } });
       setQuotations(r.data.data);
+      if (r.data.pagination) {
+        setTotalPages(r.data.pagination.pages);
+        setCurrentPage(r.data.pagination.page);
+      }
     } catch { showToast('Failed to load quotations', 'error'); }
     finally { setLoading(false); }
   }, [showToast]);
 
-  useEffect(() => { loadList(); }, [loadList]);
+  useEffect(() => { loadList(1); }, [loadList]);
 
   const openBuilder = async (q: Quotation) => {
     try {
@@ -911,7 +927,7 @@ export default function SalesWorkspace() {
   const exitBuilder = () => {
     setView('list');
     setSelected(null);
-    loadList();
+    loadList(currentPage);
   };
 
   return (
@@ -922,7 +938,10 @@ export default function SalesWorkspace() {
           loading={loading}
           onOpen={openBuilder}
           onNew={() => setShowCreateModal(true)}
-          onRefresh={loadList}
+          onRefresh={() => loadList(currentPage)}
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={loadList}
         />
       ) : selected ? (
         <QuotationBuilderView

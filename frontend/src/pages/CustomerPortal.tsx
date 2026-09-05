@@ -11,6 +11,8 @@ export default function CustomerPortal() {
   const [quotations, setQuotations] = useState<Quotation[]>([]);
   const [selected, setSelected] = useState<Quotation | null>(null);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
 
   const showToast = useCallback((msg: string, type: 'success' | 'error' = 'success') => {
@@ -18,17 +20,21 @@ export default function CustomerPortal() {
     setTimeout(() => setToast(null), 4000);
   }, []);
 
-  const loadList = useCallback(async () => {
+  const loadList = useCallback(async (page = 1) => {
     setLoading(true);
     try {
       // Customers can only see non-DRAFT quotations (enforced by backend)
-      const r = await api.get('/quotations', { params: { limit: 50 } });
+      const r = await api.get('/quotations', { params: { limit: 12, page } });
       setQuotations((r.data.data as Quotation[]).filter(q => q.status !== 'DRAFT'));
+      if (r.data.pagination) {
+        setTotalPages(r.data.pagination.pages || 1);
+        setCurrentPage(r.data.pagination.page || 1);
+      }
     } catch { showToast('Failed to load quotations', 'error'); }
     finally { setLoading(false); }
   }, [showToast]);
 
-  useEffect(() => { loadList(); }, [loadList]);
+  useEffect(() => { loadList(1); }, [loadList]);
 
   const openDetail = async (q: Quotation) => {
     try {
@@ -41,7 +47,15 @@ export default function CustomerPortal() {
   return (
     <AppShell>
       {view === 'list' ? (
-        <PortalQuotationList quotations={quotations} loading={loading} onOpen={openDetail} onRefresh={loadList} />
+        <PortalQuotationList 
+          quotations={quotations} 
+          loading={loading} 
+          onOpen={openDetail} 
+          onRefresh={() => loadList(currentPage)} 
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={loadList}
+        />
       ) : selected ? (
         <PortalQuotationDetail
           quotation={selected}

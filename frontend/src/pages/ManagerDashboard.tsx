@@ -4,6 +4,8 @@ import ApprovalQueue from '../components/approvals/ApprovalQueue';
 import ApprovalReviewDrawer from '../components/approvals/ApprovalReviewDrawer';
 import { CheckSquare, RefreshCw } from 'lucide-react';
 import api from '../lib/api';
+import Loader from '../components/ui/Loader';
+import Pagination from '../components/ui/Pagination';
 
 export interface QueueItem {
   id: string;
@@ -21,13 +23,19 @@ export interface QueueItem {
 export default function ManagerDashboard() {
   const [queue, setQueue] = useState<QueueItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (page = 1) => {
     try {
-      const r = await api.get('/approval-queue');
+      const r = await api.get('/approval-queue', { params: { limit: 12, page } });
       setQueue(r.data.data);
+      if (r.data.pagination) {
+        setTotalPages(r.data.pagination.pages || 1);
+        setCurrentPage(r.data.pagination.page || 1);
+      }
     } catch {
       // handled by api interceptor
     } finally {
@@ -36,16 +44,16 @@ export default function ManagerDashboard() {
     }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { load(1); }, [load]);
 
   const refresh = () => {
     setRefreshing(true);
-    load();
+    load(currentPage);
   };
 
   const handleDecision = () => {
     setSelectedId(null);
-    load();
+    load(currentPage);
   };
 
   return (
@@ -71,10 +79,7 @@ export default function ManagerDashboard() {
         </div>
 
         {loading ? (
-          <div className="flex items-center justify-center py-32 text-subtle">
-            <RefreshCw size={20} className="animate-spin mr-3" />
-            Loading queue…
-          </div>
+          <div className="py-20"><Loader loading={true} /></div>
         ) : queue.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-32 text-center">
             <div className="w-16 h-16 rounded-lg bg-success/10 border border-success/30 flex items-center justify-center mb-4">
@@ -86,10 +91,17 @@ export default function ManagerDashboard() {
             </p>
           </div>
         ) : (
-          <ApprovalQueue
-            items={queue}
-            onReview={(id) => setSelectedId(id)}
-          />
+          <>
+            <ApprovalQueue
+              items={queue}
+              onReview={(id) => setSelectedId(id)}
+            />
+            {!loading && queue.length > 0 && (
+              <div className="mt-6">
+                <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={load} />
+              </div>
+            )}
+          </>
         )}
       </div>
 

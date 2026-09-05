@@ -1,6 +1,8 @@
 import { ChevronRight, RefreshCw, Clock, Globe } from 'lucide-react';
 import type { Quotation } from '../../types/quotation';
 import { StatusBadge } from '../ui/badges';
+import Loader from '../ui/Loader';
+import Pagination from '../ui/Pagination';
 
 function fmt(n: string | number) {
   return Number(n).toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 });
@@ -25,11 +27,17 @@ export function PortalQuotationList({
   loading,
   onOpen,
   onRefresh,
+  currentPage,
+  totalPages,
+  onPageChange,
 }: {
   quotations: Quotation[];
   loading: boolean;
   onOpen: (q: Quotation) => void;
   onRefresh: () => void;
+  currentPage: number;
+  totalPages: number;
+  onPageChange: (p: number) => void;
 }) {
   return (
     <div className="p-8">
@@ -58,9 +66,7 @@ export function PortalQuotationList({
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center py-32 text-subtle">
-          <RefreshCw size={20} className="animate-spin mr-3" /> Loading quotations…
-        </div>
+        <div className="py-20"><Loader loading={true} /></div>
       ) : quotations.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-32 text-center">
           <div className="w-16 h-16 rounded-lg bg-link/10 border border-link/30 flex items-center justify-center mb-4">
@@ -107,6 +113,11 @@ export function PortalQuotationList({
               </div>
             </div>
           ))}
+        </div>
+      )}
+      {!loading && quotations.length > 0 && (
+        <div className="mt-6">
+          <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={onPageChange} />
         </div>
       )}
     </div>

@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { FileText } from 'lucide-react';
+import { TableSkeleton } from '../ui/Skeleton';
 
 interface QuotationRow {
   id: string;
@@ -16,6 +17,7 @@ interface Props {
   quotations: QuotationRow[];
   basePath: string; // e.g., '/sales/quotations' or '/manager/quotations'
   hideCustomer?: boolean;
+  loading?: boolean;
 }
 
 export function statusColor(status: string) {
@@ -38,7 +40,11 @@ export function formatCurrency(amount: number | string) {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(num || 0);
 }
 
-export default function QuotationListTable({ quotations, basePath, hideCustomer = false }: Props) {
+export default function QuotationListTable({ quotations, basePath, hideCustomer = false, loading = false }: Props) {
+  if (loading && quotations.length === 0) {
+    return <TableSkeleton rows={5} columns={hideCustomer ? 4 : 5} />;
+  }
+
   if (quotations.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center bg-canvas border border-hairline rounded-md">

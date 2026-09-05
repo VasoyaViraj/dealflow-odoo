@@ -13,6 +13,8 @@ import FulfillmentPanel from '../components/fulfillment/FulfillmentPanel';
 import api from '../lib/api';
 import { AlertTriangle, PackageCheck, RefreshCw, Truck } from 'lucide-react';
 import type { FulfillmentListItem } from '../types/fulfillment';
+import Loader from '../components/ui/Loader';
+import Pagination from '../components/ui/Pagination';
 
 interface ApprovedQuotation {
   id: string;
@@ -33,24 +35,30 @@ export default function FulfillmentWorkspace() {
   const [orders, setOrders] = useState<FulfillmentListItem[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   const [refreshing, setRefreshing] = useState(false);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (page = 1) => {
     try {
       const [q, f] = await Promise.all([
-        api.get('/quotations', { params: { status: 'APPROVED', limit: 100 } }),
+        api.get('/quotations', { params: { status: 'APPROVED', limit: 20, page } }),
         api.get('/fulfillment', { params: { limit: 100 } }),
       ]);
       setQuotations(q.data.data);
       setOrders(f.data.data);
       setSelectedId((current) => current ?? q.data.data[0]?.id ?? null);
+      if (q.data.pagination) {
+        setTotalPages(q.data.pagination.pages || 1);
+        setCurrentPage(q.data.pagination.page || 1);
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { load(1); }, [load]);
 
   const orderByQuotation = useMemo(
     () => new Map(orders.map((o) => [o.quotationId, o])),
@@ -63,7 +71,7 @@ export default function FulfillmentWorkspace() {
 
   const refresh = () => {
     setRefreshing(true);
-    load();
+    load(currentPage);
   };
 
   const nameOf = (q: ApprovedQuotation) =>
@@ -141,12 +149,9 @@ export default function FulfillmentWorkspace() {
  </button>
  </div>
 
- {loading ? (
- <div className="flex items-center justify-center py-32 text-subtle">
- <RefreshCw size={20} className="animate-spin mr-3" />
- Loading approved deals…
- </div>
- ) : quotations.length === 0 ? (
+  {loading ? (
+    <div className="py-20"><Loader loading={true} /></div>
+  ) : quotations.length === 0 ? (
  <div className="flex flex-col items-center justify-center py-32 text-center">
  <div className="w-16 h-16 rounded-lg bg-cream border border-hairline flex items-center justify-center mb-4">
  <Truck size={28} className="text-link" />
@@ -157,12 +162,18 @@ export default function FulfillmentWorkspace() {
  </p>
  </div>
  ) : (
- <div className="grid grid-cols-[300px_1fr] gap-6 items-start">
- <div className="space-y-5">
- {section('Awaiting split', <Truck size={11} />, pending)}
-              {section('On backorder', <AlertTriangle size={11} className="text-warning" />, backordered)}
- {section('Fulfilled', <PackageCheck size={11} className="text-success" />, done)}
-            </div>
+  <div className="grid grid-cols-[300px_1fr] gap-6 items-start">
+  <div className="space-y-5">
+    {section('Awaiting split', <Truck size={11} />, pending)}
+    {section('On backorder', <AlertTriangle size={11} className="text-warning" />, backordered)}
+    {section('Fulfilled', <PackageCheck size={11} className="text-success" />, done)}
+    
+    {!loading && quotations.length > 0 && (
+      <div className="mt-4">
+        <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={load} />
+      </div>
+    )}
+  </div>
 
             <div className="rounded-lg border border-hairline bg-soft p-6">
               {selectedId ? (

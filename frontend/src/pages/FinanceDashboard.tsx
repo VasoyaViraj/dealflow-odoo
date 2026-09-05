@@ -8,6 +8,8 @@ import api from '../lib/api';
 import type { QueueItem } from './ManagerDashboard';
 import type { Invoice } from '../types/billing';
 import { Toast } from '../components/ui/Toast';
+import Loader from '../components/ui/Loader';
+import Pagination from '../components/ui/Pagination';
 
 type ActiveTab = 'approvals' | 'invoices';
 
@@ -17,6 +19,10 @@ export default function FinanceDashboard() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loadingQueue, setLoadingQueue] = useState(true);
   const [loadingInvoices, setLoadingInvoices] = useState(true);
+  const [queuePage, setQueuePage] = useState(1);
+  const [queueTotalPages, setQueueTotalPages] = useState(1);
+  const [invoicePage, setInvoicePage] = useState(1);
+  const [invoiceTotalPages, setInvoiceTotalPages] = useState(1);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [payingId, setPayingId] = useState<string | null>(null);
@@ -27,10 +33,14 @@ export default function FinanceDashboard() {
     setTimeout(() => setToast(null), 4000);
   }, []);
 
-  const loadQueue = useCallback(async () => {
+  const loadQueue = useCallback(async (page = 1) => {
     try {
-      const r = await api.get('/approval-queue');
+      const r = await api.get('/approval-queue', { params: { limit: 12, page } });
       setQueue(r.data.data);
+      if (r.data.pagination) {
+        setQueueTotalPages(r.data.pagination.pages || 1);
+        setQueuePage(r.data.pagination.page || 1);
+      }
     } catch {
       // handled by interceptor
     } finally {
@@ -39,11 +49,15 @@ export default function FinanceDashboard() {
     }
   }, []);
 
-  const loadInvoices = useCallback(async () => {
+  const loadInvoices = useCallback(async (page = 1) => {
     setLoadingInvoices(true);
     try {
-      const r = await api.get('/invoices', { params: { limit: 50 } });
+      const r = await api.get('/invoices', { params: { limit: 12, page } });
       setInvoices(r.data.data);
+      if (r.data.pagination) {
+        setInvoiceTotalPages(r.data.pagination.pages || 1);
+        setInvoicePage(r.data.pagination.page || 1);
+      }
     } catch {
       // silently fail — billing may not have started yet
     } finally {
@@ -51,18 +65,18 @@ export default function FinanceDashboard() {
     }
   }, []);
 
-  useEffect(() => { loadQueue(); }, [loadQueue]);
-  useEffect(() => { loadInvoices(); }, [loadInvoices]);
+  useEffect(() => { loadQueue(1); }, [loadQueue]);
+  useEffect(() => { loadInvoices(1); }, [loadInvoices]);
 
   const refresh = () => {
     setRefreshing(true);
-    loadQueue();
-    loadInvoices();
+    loadQueue(queuePage);
+    loadInvoices(invoicePage);
   };
 
   const handleDecision = () => {
     setSelectedId(null);
-    loadQueue();
+    loadQueue(queuePage);
   };
 
   const handlePayInvoice = async (invoice: Invoice) => {
@@ -70,7 +84,7 @@ export default function FinanceDashboard() {
     try {
       await api.post(`/invoices/${invoice.id}/pay`);
       showToast(`Invoice ${invoice.invoiceNumber} marked as PAID`);
-      loadInvoices();
+      loadInvoices(invoicePage);
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { error?: { message?: string } } } })
         ?.response?.data?.error?.message ?? 'Failed to record payment';
@@ -149,10 +163,7 @@ export default function FinanceDashboard() {
             </div>
 
             {loadingQueue ? (
-              <div className="flex items-center justify-center py-32 text-subtle">
-                <RefreshCw size={20} className="animate-spin mr-3" />
-                Loading queue…
-              </div>
+              <div className="py-20"><Loader loading={true} /></div>
             ) : queue.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-32 text-center">
                 <div className="w-16 h-16 rounded-lg bg-mustard/20 border border-mustard/60 flex items-center justify-center mb-4">
@@ -164,11 +175,18 @@ export default function FinanceDashboard() {
                 </p>
               </div>
             ) : (
-              <ApprovalQueue
-                items={queue}
-                onReview={(id) => setSelectedId(id)}
-                accentColor="amber"
-              />
+              <>
+                <ApprovalQueue
+                  items={queue}
+                  onReview={(id) => setSelectedId(id)}
+                  accentColor="amber"
+                />
+                {!loadingQueue && queue.length > 0 && (
+                  <div className="mt-6">
+                    <Pagination currentPage={queuePage} totalPages={queueTotalPages} onPageChange={loadQueue} />
+                  </div>
+                )}
+              </>
             )}
           </>
         )}
@@ -194,10 +212,7 @@ export default function FinanceDashboard() {
             </div>
 
             {loadingInvoices ? (
-              <div className="flex items-center justify-center py-16 text-subtle">
-                <RefreshCw size={20} className="animate-spin mr-3" />
-                Loading invoices…
-              </div>
+              <div className="py-20"><Loader loading={true} /></div>
             ) : invoices.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-24 text-center">
                 <div className="w-16 h-16 rounded-lg bg-link/10 border border-link/30 flex items-center justify-center mb-4">
@@ -254,6 +269,12 @@ export default function FinanceDashboard() {
                         <InvoiceCard key={inv.id} invoice={inv} canPay={false} />
                       ))}
                     </div>
+                  </div>
+                )}
+
+                {!loadingInvoices && invoices.length > 0 && (
+                  <div className="mt-6">
+                    <Pagination currentPage={invoicePage} totalPages={invoiceTotalPages} onPageChange={loadInvoices} />
                   </div>
                 )}
               </div>

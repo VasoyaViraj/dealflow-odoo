@@ -5,6 +5,7 @@ import {
   Users, Package, Percent, Warehouse, RefreshCw, Truck,
   Plus, Pencil, Check, X, AlertCircle, Boxes
 } from 'lucide-react';
+import Loader from '../components/ui/Loader';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -262,7 +263,7 @@ function CustomersTab({ showToast }: { showToast: (m: string, t?: 'success' | 'e
       )}
 
       {loading ? (
-        <div className="text-center py-10 text-subtle">Loading…</div>
+        <div className="py-10"><Loader loading={true} /></div>
       ) : (
         <table className="w-full text-sm">
           <thead>
@@ -367,7 +368,7 @@ function ProductsTab({ showToast }: { showToast: (m: string, t?: 'success' | 'er
         </div>
       )}
 
-      {loading ? <div className="text-center py-10 text-subtle">Loading…</div> : (
+      {loading ? <div className="py-10"><Loader loading={true} /></div> : (
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-hairline text-subtle text-left">
@@ -436,7 +437,7 @@ function DiscountsTab({ showToast }: { showToast: (m: string, t?: 'success' | 'e
     load();
   };
 
-  if (loading) return <div className="text-center py-10 text-subtle">Loading…</div>;
+  if (loading) return <div className="py-10"><Loader loading={true} /></div>;
 
   return (
     <div className="space-y-8">
@@ -634,7 +635,7 @@ function WarehousesTab({ showToast }: { showToast: (m: string, t?: 'success' | '
         </div>
       )}
 
-      {loading ? <div className="text-center py-10 text-subtle">Loading…</div> : (
+      {loading ? <div className="py-10"><Loader loading={true} /></div> : (
         <div className="grid grid-cols-2 gap-4">
           {rows.map(r => {
             const draft = draftFor(r);
@@ -754,7 +755,7 @@ function FulfillmentRulesTab({ showToast }: { showToast: (m: string, t?: 'succes
     } finally { setSaving(false); }
   };
 
-  if (loading || !weights) return <div className="text-center py-10 text-subtle">Loading…</div>;
+  if (loading || !weights) return <div className="py-10"><Loader loading={true} /></div>;
 
   return (
     <div>
@@ -828,7 +829,7 @@ function InventoryTab({ showToast }: { showToast: (m: string, t?: 'success' | 'e
  <SectionHeader title="Inventory — Stock per Warehouse" />
  <p className="text-sm text-subtle mb-5">These quantities drive the fulfillment engine's warehouse split calculation.</p>
 
-      {loading ? <div className="text-center py-10 text-subtle">Loading…</div> : (
+      {loading ? <div className="py-10"><Loader loading={true} /></div> : (
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-hairline text-subtle text-left">
@@ -920,7 +921,7 @@ function PlansTab({ showToast }: { showToast: (m: string, t?: 'success' | 'error
         </div>
       )}
 
-      {loading ? <div className="text-center py-10 text-subtle">Loading…</div> : (
+      {loading ? <div className="py-10"><Loader loading={true} /></div> : (
         <div className="grid grid-cols-3 gap-4">
           {rows.map(r => (
             <div key={r.id} className="bg-soft border border-hairline rounded-md p-5">

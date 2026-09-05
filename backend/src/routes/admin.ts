@@ -80,7 +80,7 @@ router.put('/customers/:id', ...adminOnly, async (req, res) => {
 
     const [row] = await db.update(customers)
       .set({ ...parsed.data, updatedAt: new Date() })
-      .where(eq(customers.id, req.params.id))
+      .where(eq(customers.id, String(req.params.id)))
       .returning();
 
     if (!row) return res.status(404).json({ success: false, error: 'Customer not found' });
@@ -96,7 +96,7 @@ router.delete('/customers/:id', ...adminOnly, async (req, res) => {
   try {
     const [row] = await db.update(customers)
       .set({ isActive: false, updatedAt: new Date() })
-      .where(eq(customers.id, req.params.id))
+      .where(eq(customers.id, String(req.params.id)))
       .returning();
     if (!row) return res.status(404).json({ success: false, error: 'Customer not found' });
     await logAudit(req.user!.id, 'CUSTOMER_DEACTIVATED', 'CUSTOMER', row.id);
@@ -148,7 +148,7 @@ router.put('/products/:id', ...adminOnly, async (req, res) => {
 
     const [row] = await db.update(products)
       .set({ ...parsed.data, updatedAt: new Date() })
-      .where(eq(products.id, req.params.id))
+      .where(eq(products.id, String(req.params.id)))
       .returning();
 
     if (!row) return res.status(404).json({ success: false, error: 'Product not found' });
@@ -181,7 +181,7 @@ router.put('/discount-tiers/:id', ...adminOnly, async (req, res) => {
 
     const [row] = await db.update(discountTierConfigs)
       .set({ maxDiscountPct: parsed.data.maxDiscountPct, updatedAt: new Date() })
-      .where(eq(discountTierConfigs.id, req.params.id))
+      .where(eq(discountTierConfigs.id, String(req.params.id)))
       .returning();
 
     if (!row) return res.status(404).json({ success: false, error: 'Tier config not found' });
@@ -216,7 +216,7 @@ router.put('/category-limits/:id', ...adminOnly, async (req, res) => {
 
     const [row] = await db.update(categoryDiscountLimits)
       .set({ maxDiscountPct: parsed.data.maxDiscountPct, updatedAt: new Date() })
-      .where(eq(categoryDiscountLimits.id, req.params.id))
+      .where(eq(categoryDiscountLimits.id, String(req.params.id)))
       .returning();
 
     if (!row) return res.status(404).json({ success: false, error: 'Category limit not found' });
@@ -299,7 +299,7 @@ router.put('/warehouses/:id', ...adminOnly, async (req, res) => {
 
     const [row] = await db.update(warehouses)
       .set({ ...warehouseValues(parsed.data), updatedAt: new Date() })
-      .where(eq(warehouses.id, req.params.id))
+      .where(eq(warehouses.id, String(req.params.id)))
       .returning();
 
     if (!row) return res.status(404).json({ success: false, error: 'Warehouse not found' });

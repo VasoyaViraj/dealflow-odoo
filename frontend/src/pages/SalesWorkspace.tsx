@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import AppShell from '../components/layout/AppShell';
 import api from '../lib/api';
 import FulfillmentPanel from '../components/fulfillment/FulfillmentPanel';
+import { BillingOverview } from '../components/billing/BillingOverview';
 import {
   Plus, ArrowLeft, ShoppingCart, Package, RefreshCw,
   Trash2, AlertTriangle, CheckCircle, ChevronRight,
@@ -349,20 +350,24 @@ function QuotationBuilderView({
 }) {
   const [q, setQ] = useState<Quotation>(initialQuotation);
   const [products, setProducts] = useState<Product[]>([]);
+  const [subscriptionPlans, setSubscriptionPlans] = useState<SubscriptionPlan[]>([]);
   const [catFilter, setCatFilter] = useState<'ALL' | 'HARDWARE' | 'SERVICES' | 'SUBSCRIPTION'>('ALL');
   const [search, setSearch] = useState('');
   const [adding, setAdding] = useState<string | null>(null);  // productId being added
   const [lineUpdating, setLineUpdating] = useState<string | null>(null); // lineId being updated
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [planSelectProduct, setPlanSelectProduct] = useState<Product | null>(null);
   const [notes, setNotes] = useState(initialQuotation.notes ?? '');
   const [orderDiscount, setOrderDiscount] = useState(initialQuotation.quotationDiscountPercent ?? '0');
+  const [sidebarTab, setSidebarTab] = useState<'summary' | 'billing'>('summary');
   const notesTimer = useRef<ReturnType<typeof setTimeout>>();
 
   const isEditable = q.status === 'DRAFT';
 
   useEffect(() => {
     api.get('/products').then(r => setProducts(r.data.data));
+    api.get('/products/subscription-plans').then(r => setSubscriptionPlans(r.data.data)).catch(() => {});
   }, []);
 
   // ─ Product Catalogue helpers
@@ -388,13 +393,23 @@ function QuotationBuilderView({
 
   // ─ Mutations
 
-  const addProduct = async (productId: string) => {
+  const addProduct = async (productId: string, subscriptionPlanId?: string) => {
     if (!isEditable) return;
+    
+    const product = products.find(p => p.id === productId);
+    if (!product) return;
+
+    if (product.category === 'SUBSCRIPTION' && !subscriptionPlanId) {
+      setPlanSelectProduct(product);
+      return;
+    }
+
     setAdding(productId);
     try {
-      const r = await api.post(`/quotations/${q.id}/items`, { productId, quantity: 1, expectedVersion: q.version });
+      const r = await api.post(`/quotations/${q.id}/items`, { productId, quantity: 1, expectedVersion: q.version, subscriptionPlanId });
       setQ(r.data.data);
       showToast('Product added');
+      setPlanSelectProduct(null);
     } catch (e: any) {
       showToast(e?.response?.data?.error?.message ?? 'Failed to add product', 'error');
     } finally { setAdding(null); }
@@ -727,12 +742,45 @@ function QuotationBuilderView({
         {/* Right sidebar: Totals + Upsell + Notes */}
         <div className="w-80 shrink-0 border-l border-zinc-800 overflow-auto flex flex-col">
 
+          {/* Sidebar tab switcher — only when APPROVED */}
+          {q.status === 'APPROVED' && (
+            <div className="flex border-b border-zinc-800 shrink-0">
+              {(['summary', 'billing'] as const).map(tab => (
+                <button
+                  key={tab}
+                  id={`sidebar-tab-${tab}`}
+                  onClick={() => setSidebarTab(tab)}
+                  className={`flex-1 py-2.5 text-xs font-semibold capitalize transition ${
+                    sidebarTab === tab
+                      ? 'text-white border-b-2 border-violet-500 bg-violet-500/5'
+                      : 'text-zinc-500 hover:text-zinc-300'
+                  }`}
+                >
+                  {tab === 'billing' ? '💳 Billing' : '📋 Summary'}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Billing tab body */}
+          {sidebarTab === 'billing' && q.status === 'APPROVED' ? (
+            <div className="flex-1 overflow-y-auto p-5">
+              <BillingOverview
+                quotationId={q.id}
+                userRole="SALES_REPRESENTATIVE"
+                showToast={showToast}
+              />
+            </div>
+          ) : (
+          <>
+
           {/* Order Totals */}
           <div className="p-5 border-b border-zinc-800">
             <p className="text-xs text-zinc-500 font-semibold uppercase tracking-wider mb-4">Order Summary</p>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between text-zinc-400">
                 <span>Subtotal</span>
+
                 <span>{fmt(q.subtotal)}</span>
               </div>
               <div className="flex justify-between text-zinc-400">
@@ -821,9 +869,48 @@ function QuotationBuilderView({
               className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2.5 text-xs text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-violet-500 resize-none transition disabled:opacity-50"
             />
           </div>
+          </>
+          )}
         </div>
       </div>
+      
+      {/* Plan Selection Modal */}
+      {planSelectProduct && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 w-full max-w-md shadow-2xl">
+            <h3 className="text-lg font-bold text-white mb-2">Select Subscription Plan</h3>
+            <p className="text-sm text-zinc-400 mb-6">Choose a billing cycle for {planSelectProduct.name}</p>
+            <div className="space-y-3 mb-6">
+              {subscriptionPlans.map(plan => (
+                <button
+                  key={plan.id}
+                  onClick={() => addProduct(planSelectProduct.id, plan.id)}
+                  className="w-full flex items-center justify-between p-4 bg-zinc-800/50 hover:bg-zinc-800 border border-zinc-700/50 hover:border-violet-500/50 rounded-xl transition text-left group"
+                >
+                  <div>
+                    <p className="font-semibold text-zinc-200 group-hover:text-white">{plan.name}</p>
+                    <p className="text-xs text-zinc-500">{plan.description}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm font-bold text-violet-400">
+                      {fmt(Number(planSelectProduct.unitPrice) * Number(plan.priceMultiplier))}
+                    </p>
+                    <p className="text-xs text-zinc-500">per {plan.billingCycle.toLowerCase()}</p>
+                  </div>
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={() => setPlanSelectProduct(null)}
+              className="w-full px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-white text-sm font-semibold rounded-lg transition"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
     </div>
+
   );
 }
 

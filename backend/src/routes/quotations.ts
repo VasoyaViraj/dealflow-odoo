@@ -93,6 +93,7 @@ const addItemSchema = z.object({
   productId: uuid,
   quantity: z.number().int().positive(),
   discountPercent: z.number().min(0).max(100).optional(),
+  subscriptionPlanId: uuid.optional(),
   expectedVersion: z.number().int().positive().optional(),
 });
 
@@ -100,11 +101,12 @@ const updateItemSchema = z
   .object({
     quantity: z.number().int().positive().optional(),
     discountPercent: z.number().min(0).max(100).optional(),
+    subscriptionPlanId: uuid.optional(),
     expectedVersion: z.number().int().positive().optional(),
   })
   .refine(
-    (v) => v.quantity !== undefined || v.discountPercent !== undefined,
-    { message: 'Provide quantity and/or discountPercent' },
+    (v) => v.quantity !== undefined || v.discountPercent !== undefined || v.subscriptionPlanId !== undefined,
+    { message: 'Provide quantity, discountPercent, or subscriptionPlanId' },
   );
 
 const QUOTATION_STATUSES = [

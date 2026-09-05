@@ -595,3 +595,176 @@ export const fulfillmentSettings = pgTable('fulfillment_settings', {
   weightInventoryPreservation: numeric('weight_inventory_preservation', { precision: 5, scale: 2 }).notNull().default('10'),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
+
+// ─── Billing Engine — Phase 7 ─────────────────────────────────────────────────
+//
+// Once a fulfillment plan is confirmed the billing engine runs two flows in
+// parallel: one-time lines (HARDWARE + SERVICES) are folded into a single
+// invoice; SUBSCRIPTION lines each create a Subscription record that drives
+// a recurring billing schedule. The two objects live in separate tables but
+// both reference the same quotationId so the UI can join them into one
+// billing summary per order.
+
+export const invoiceStatusEnum = pgEnum('invoice_status', [
+  'DRAFT',
+  'ISSUED',
+  'PAID',
+  'CANCELLED',
+  'OVERDUE',
+]);
+
+export const subscriptionStatusEnum = pgEnum('subscription_status', [
+  'ACTIVE',
+  'PAUSED',
+  'CANCELLED',
+  'EXPIRED',
+]);
+
+export const billingScheduleStatusEnum = pgEnum('billing_schedule_status', [
+  'UPCOMING',
+  'INVOICED',
+  'SKIPPED',
+]);
+
+export const invoiceTypeEnum = pgEnum('invoice_type', [
+  'ONE_TIME',
+  'SUBSCRIPTION',
+]);
+
+/**
+ * invoice_sequence — single-row counter backing human-readable invoice numbers
+ * (INV-000001). Identical pattern to quotation_sequence.
+ */
+export const invoiceSequence = pgTable('invoice_sequence', {
+  id: integer('id').primaryKey().default(1),
+  lastValue: integer('last_value').notNull().default(0),
+});
+
+/**
+ * invoices — one per one-time billing event per quotation.
+ *
+ * For a ONE_TIME invoice the subscriptionId is null.
+ * For a SUBSCRIPTION invoice (future: when a billing cycle closes) the
+ * subscriptionId links back to the generating subscription.
+ * Both types share the same status machine and payment recording.
+ */
+export const invoices = pgTable('invoices', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  invoiceNumber: text('invoice_number').notNull().unique(),
+
+  quotationId: uuid('quotation_id')
+    .notNull()
+    .references(() => quotations.id, { onDelete: 'restrict' }),
+  customerId: uuid('customer_id')
+    .notNull()
+    .references(() => customers.id, { onDelete: 'restrict' }),
+  subscriptionId: uuid('subscription_id'), // populated only for SUBSCRIPTION type
+
+  type: invoiceTypeEnum('type').notNull().default('ONE_TIME'),
+  status: invoiceStatusEnum('status').notNull().default('ISSUED'),
+
+  // Line snapshot stored as JSONB so the invoice is self-contained even if
+  // the quotation lines are later modified on a revised quotation.
+  lineSnapshot: jsonb('line_snapshot').notNull().default('[]'),
+
+  subtotal: numeric('subtotal', { precision: 14, scale: 2 }).notNull().default('0'),
+  discountAmount: numeric('discount_amount', { precision: 14, scale: 2 }).notNull().default('0'),
+  taxAmount: numeric('tax_amount', { precision: 14, scale: 2 }).notNull().default('0'),
+  grandTotal: numeric('grand_total', { precision: 14, scale: 2 }).notNull().default('0'),
+
+  dueDate: timestamp('due_date').notNull(),
+  paidAt: timestamp('paid_at'),
+  notes: text('notes'),
+
+  createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => [
+  index('invoices_quotation_idx').on(table.quotationId),
+  index('invoices_customer_idx').on(table.customerId),
+  index('invoices_status_idx').on(table.status),
+]);
+
+/**
+ * subscriptions — one record per SUBSCRIPTION quotation line that has been
+ * billed. Links to the quotation line for proration and modification.
+ *
+ * currentPeriodStart / currentPeriodEnd track the active billing window.
+ * nextBillingDate is the date the next invoice will be generated.
+ */
+export const subscriptions = pgTable('subscriptions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  subscriptionNumber: text('subscription_number').notNull().unique(),
+
+  quotationId: uuid('quotation_id')
+    .notNull()
+    .references(() => quotations.id, { onDelete: 'restrict' }),
+  quotationLineId: uuid('quotation_line_id')
+    .notNull()
+    .unique()
+    .references(() => quotationLines.id, { onDelete: 'restrict' }),
+  customerId: uuid('customer_id')
+    .notNull()
+    .references(() => customers.id, { onDelete: 'restrict' }),
+  productId: uuid('product_id')
+    .notNull()
+    .references(() => products.id, { onDelete: 'restrict' }),
+  subscriptionPlanId: uuid('subscription_plan_id')
+    .references(() => subscriptionPlans.id, { onDelete: 'set null' }),
+
+  // Snapshot of commercial terms at subscription creation
+  productName: text('product_name').notNull(),
+  billingCycle: subscriptionBillingCycleEnum('billing_cycle').notNull(),
+  quantity: integer('quantity').notNull(),
+  unitPrice: numeric('unit_price', { precision: 12, scale: 2 }).notNull(),
+  discountPercent: numeric('discount_percent', { precision: 5, scale: 2 }).notNull().default('0'),
+  taxRate: numeric('tax_rate', { precision: 5, scale: 2 }).notNull().default('18'),
+
+  // Derived — price per billing cycle after discount
+  cycleAmount: numeric('cycle_amount', { precision: 14, scale: 2 }).notNull(),
+
+  status: subscriptionStatusEnum('status').notNull().default('ACTIVE'),
+
+  currentPeriodStart: timestamp('current_period_start').notNull(),
+  currentPeriodEnd: timestamp('current_period_end').notNull(),
+  nextBillingDate: timestamp('next_billing_date').notNull(),
+
+  cancelledAt: timestamp('cancelled_at'),
+  cancelReason: text('cancel_reason'),
+
+  // Proration credit when mid-cycle changes are made
+  lastProratedAmount: numeric('last_prorated_amount', { precision: 14, scale: 2 }),
+
+  createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => [
+  index('subscriptions_quotation_idx').on(table.quotationId),
+  index('subscriptions_customer_idx').on(table.customerId),
+  index('subscriptions_status_idx').on(table.status),
+]);
+
+/**
+ * billing_schedule_entries — upcoming billing events for a subscription.
+ *
+ * The engine pre-generates 12 future entries when a subscription is created.
+ * UPCOMING rows are what the billing schedule timeline displays.
+ * When an invoice is raised for a period the row flips to INVOICED.
+ */
+export const billingScheduleEntries = pgTable('billing_schedule_entries', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  subscriptionId: uuid('subscription_id')
+    .notNull()
+    .references(() => subscriptions.id, { onDelete: 'cascade' }),
+
+  dueDate: timestamp('due_date').notNull(),
+  amount: numeric('amount', { precision: 14, scale: 2 }).notNull(),
+  status: billingScheduleStatusEnum('status').notNull().default('UPCOMING'),
+
+  invoiceId: uuid('invoice_id'), // linked when status = INVOICED
+
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => [
+  index('billing_schedule_subscription_idx').on(table.subscriptionId),
+  index('billing_schedule_due_date_idx').on(table.dueDate),
+]);

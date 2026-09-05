@@ -293,6 +293,121 @@ async function seed() {
     }
   }
 
+  // ─── 10. Demo Quotations (Phase 4 fixtures) ──────────────────────────────
+  // These exist purely so the Phase 4 approval engine can be exercised via
+  // API (POST /submit, /approve, /reject, GET /risk, /approvals) before
+  // Phase 3's real quotation-creation flow lands. They mirror the three
+  // scenarios in doc/phase4/DEMO_SCRIPT.md exactly. Once Phase 3 ships its
+  // own creation flow, these can be deleted — nothing depends on their IDs.
+  console.log('\n🧾 Seeding demo quotations (Phase 4 fixtures)...');
+
+  const [existingQuotation] = await db.select({ id: schema.quotations.id }).from(schema.quotations).limit(1);
+
+  if (existingQuotation) {
+    console.log('  ↳ quotations already exist, skipping demo fixtures');
+  } else {
+    const acmeId = seededCustomers['Acme Corp'];
+    const laptopId = seededProducts['Laptop'];
+    const setupServiceId = seededProducts['Setup Service'];
+    const salesRepId = seededUsers['sales@dealflow.com'];
+
+    let demoSeq = 0;
+
+    async function seedQuotation(
+      label: string,
+      lines: Array<{
+        productId: string;
+        productName: string;
+        category: 'HARDWARE' | 'SERVICES' | 'SUBSCRIPTION';
+        quantity: number;
+        unitPrice: string;
+        costPrice: string;
+        discountPercent: string;
+      }>,
+    ) {
+      let subtotal = 0;
+      let discountAmount = 0;
+      let finalTotal = 0;
+      let totalCost = 0;
+
+      const lineRows = lines.map((l, i) => {
+        const lineValue = parseFloat(l.unitPrice) * l.quantity;
+        const lineDiscount = lineValue * (parseFloat(l.discountPercent) / 100);
+        const lineFinal = lineValue - lineDiscount;
+        const lineCost = parseFloat(l.costPrice) * l.quantity;
+
+        subtotal += lineValue;
+        discountAmount += lineDiscount;
+        finalTotal += lineFinal;
+        totalCost += lineCost;
+
+        return {
+          productId: l.productId,
+          lineNumber: i + 1,
+          // Catalogue snapshot, exactly as the Phase 3 builder records it.
+          productName: l.productName,
+          category: l.category,
+          unitCost: l.costPrice,
+          taxRate: '18.00',
+          quantity: l.quantity,
+          unitPrice: l.unitPrice,
+          discountPercent: l.discountPercent,
+          grossAmount: lineValue.toFixed(2),
+          discountAmount: lineDiscount.toFixed(2),
+          finalPrice: lineFinal.toFixed(2),
+          netAmount: lineFinal.toFixed(2),
+          cost: lineCost.toFixed(2),
+          margin: (lineFinal - lineCost).toFixed(2),
+        };
+      });
+
+      const taxAmount = finalTotal * 0.18;
+      const grandTotal = finalTotal + taxAmount;
+      const margin = finalTotal - totalCost;
+      const marginPercent = finalTotal > 0 ? (margin / finalTotal) * 100 : 0;
+
+      demoSeq += 1;
+      const [quotation] = await db.insert(schema.quotations).values({
+        quotationNumber: `QUO-DEMO-${String(demoSeq).padStart(4, '0')}`,
+        customerId: acmeId,
+        salesRepId,
+        status: 'DRAFT',
+        subtotal: subtotal.toFixed(2),
+        discountAmount: discountAmount.toFixed(2),
+        taxableAmount: finalTotal.toFixed(2),
+        taxAmount: taxAmount.toFixed(2),
+        grandTotal: grandTotal.toFixed(2),
+        totalCost: totalCost.toFixed(2),
+        margin: margin.toFixed(2),
+        marginPercent: marginPercent.toFixed(2),
+      }).returning();
+
+      for (const line of lineRows) {
+        await db.insert(schema.quotationLines).values({ ...line, quotationId: quotation.id });
+      }
+
+      console.log(`  ✓ ${label} → quotation ${quotation.id}`);
+      return quotation.id;
+    }
+
+    if (acmeId && laptopId && setupServiceId && salesRepId) {
+      await seedQuotation('DEMO_SCRIPT Step 2-8 (Laptop x2@12% + Setup Service x1@18%, expect riskScore 13.79 -> SALES_MANAGER)', [
+        { productId: laptopId, productName: 'Laptop', category: 'HARDWARE', quantity: 2, unitPrice: '1200.00', costPrice: '800.00', discountPercent: '12' },
+        { productId: setupServiceId, productName: 'Setup Service', category: 'SERVICES', quantity: 1, unitPrice: '500.00', costPrice: '100.00', discountPercent: '18' },
+      ]);
+
+      await seedQuotation('DEMO_SCRIPT Step 9 (Setup Service x10@25%, expect riskScore 150 -> FINANCE)', [
+        { productId: setupServiceId, productName: 'Setup Service', category: 'SERVICES', quantity: 10, unitPrice: '500.00', costPrice: '100.00', discountPercent: '25' },
+      ]);
+
+      await seedQuotation('DEMO_SCRIPT Step 10 (Setup Service x1@18%, for the rejection demo)', [
+        { productId: setupServiceId, productName: 'Setup Service', category: 'SERVICES', quantity: 1, unitPrice: '500.00', costPrice: '100.00', discountPercent: '18' },
+      ]);
+    } else {
+      console.log('  ⚠ Skipping demo quotations (missing Acme Corp / Laptop / Setup Service / sales rep IDs)');
+    }
+  }
+
   // ─── Done ─────────────────────────────────────────────────────────────────
   console.log('\n✅ Phase 2 seed complete!\n');
   console.log('Demo credentials:');

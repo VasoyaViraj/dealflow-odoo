@@ -184,29 +184,52 @@ export function PortalQuotationDetail({
 
       {/* Negotiation Panel */}
       {canNegotiate && !requestSubmitted && !orderConfirmed && (
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 mb-6">
-          <h2 className="text-sm font-semibold text-zinc-200 mb-1 flex items-center gap-2">
-            <MessageSquare size={14} /> Request a Change
-          </h2>
-          <p className="text-xs text-zinc-500 mb-4">
-            Not happy with the pricing or terms? Describe your request and your sales rep will get back to you.
-          </p>
-          <textarea
-            id="counter-offer-textarea"
-            value={counterNote}
-            onChange={e => setCounterNote(e.target.value)}
-            placeholder="e.g. I'd like to request an additional 5% discount on the Hardware items, or swap the Setup Service for Remote Onboarding…"
-            rows={4}
-            className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-sky-500 resize-none transition mb-3"
-          />
-          <button
-            id="submit-negotiation-btn"
-            onClick={handleSubmitRequest}
-            disabled={submittingRequest || !counterNote.trim()}
-            className="flex items-center gap-2 px-5 py-2.5 bg-sky-600 hover:bg-sky-500 text-white text-sm font-semibold rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <Send size={13} /> {submittingRequest ? 'Submitting…' : 'Submit Request'}
-          </button>
+        <div 
+          className="relative rounded-2xl p-6 mb-6 overflow-hidden border border-indigo-500/30 group transition-all duration-300 hover:border-indigo-500/50"
+          style={{
+            background: 'linear-gradient(135deg, rgba(30, 27, 75, 0.4) 0%, rgba(17, 24, 39, 0.8) 100%)',
+            boxShadow: '0 8px 32px -4px rgba(79, 70, 229, 0.15)'
+          }}
+        >
+          {/* Subtle animated background glow */}
+          <div className="absolute -inset-[100%] animate-[spin_10s_linear_infinite] opacity-20 pointer-events-none">
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-indigo-500/40 to-transparent blur-3xl" />
+          </div>
+          
+          <div className="relative z-10 flex flex-col md:flex-row gap-6">
+            <div className="md:w-1/3 flex flex-col justify-center">
+              <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-indigo-500/20 text-indigo-400 mb-4 border border-indigo-500/30 shadow-[0_0_15px_rgba(79,70,229,0.2)]">
+                <MessageSquare size={24} />
+              </div>
+              <h2 className="text-xl font-bold text-white mb-2 tracking-tight">
+                Negotiate Terms
+              </h2>
+              <p className="text-sm text-indigo-200/70 leading-relaxed">
+                Looking for a better deal or different terms? Send a counter-offer directly to your dedicated sales representative.
+              </p>
+            </div>
+            
+            <div className="md:w-2/3 flex flex-col">
+              <textarea
+                id="counter-offer-textarea"
+                value={counterNote}
+                onChange={e => setCounterNote(e.target.value)}
+                placeholder="e.g. Could we increase the discount to 10% on the hardware, or waive the setup fees?"
+                rows={4}
+                className="w-full bg-zinc-950/50 border border-indigo-500/20 rounded-xl px-5 py-4 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 resize-none transition shadow-inner backdrop-blur-sm mb-4"
+              />
+              <div className="flex justify-end">
+                <button
+                  id="submit-negotiation-btn"
+                  onClick={handleSubmitRequest}
+                  disabled={submittingRequest || !counterNote.trim()}
+                  className="flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-medium rounded-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_4px_20px_-4px_rgba(99,102,241,0.5)] hover:shadow-[0_8px_25px_-4px_rgba(99,102,241,0.6)] hover:-translate-y-0.5 active:translate-y-0"
+                >
+                  <Send size={16} /> {submittingRequest ? 'Submitting Request…' : 'Send Counter-Offer'}
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 

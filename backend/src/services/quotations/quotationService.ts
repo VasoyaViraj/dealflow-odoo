@@ -101,7 +101,7 @@ export interface ListQuotationsFilters {
 // REVISION_REQUESTED is editable so the rep can act on a reviewer's feedback:
 // Phase 4 leaves the quotation in REVISION_REQUESTED (it never reverts it to
 // DRAFT), and submitForApproval accepts it as a resubmittable state.
-const EDITABLE_STATUSES = new Set(['DRAFT', 'REVISION_REQUESTED']);
+const EDITABLE_STATUSES = new Set(['DRAFT', 'REVISION_REQUESTED', 'NEGOTIATION_REQUESTED']);
 
 // ─── Public commands ─────────────────────────────────────────────────────────
 
@@ -426,7 +426,7 @@ export async function submitQuotation(
     assertMutable(actor, quotation);
     assertVersion(quotation, expectedVersion);
 
-    if (quotation.status !== 'DRAFT' && quotation.status !== 'REVISION_REQUESTED') {
+    if (quotation.status !== 'DRAFT' && quotation.status !== 'REVISION_REQUESTED' && quotation.status !== 'NEGOTIATION_REQUESTED') {
       throw new QuotationError(
         'INVALID_STATE_TRANSITION',
         `A quotation in status ${quotation.status} cannot be submitted`,

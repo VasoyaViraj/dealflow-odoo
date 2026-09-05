@@ -66,6 +66,8 @@ const STATUS_LABELS: Record<string, string> = {
   PENDING_MANAGER: 'Awaiting Manager', PENDING_FINANCE: 'Awaiting Finance',
   APPROVED: 'Approved', REJECTED: 'Rejected',
   CANCELLED: 'Cancelled', EXPIRED: 'Expired',
+  NEGOTIATION_REQUESTED: 'Negotiation Requested',
+  CONFIRMED: 'Confirmed',
 };
 
 function StatusBadge({ status }: { status: string }) {
@@ -76,6 +78,8 @@ function StatusBadge({ status }: { status: string }) {
     PENDING_FINANCE: 'bg-amber-500/15 text-amber-300 border-amber-500/30',
     APPROVED: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
     REJECTED: 'bg-red-500/15 text-red-300 border-red-500/30',
+    NEGOTIATION_REQUESTED: 'bg-sky-500/15 text-sky-300 border-sky-500/30',
+    CONFIRMED: 'bg-teal-500/15 text-teal-300 border-teal-500/30',
   };
   return (
     <span className={`inline-flex text-xs font-semibold px-2.5 py-0.5 rounded-full border ${colors[status] ?? 'bg-zinc-700 text-zinc-300'}`}>
@@ -364,7 +368,7 @@ function QuotationBuilderView({
   const [sidebarTab, setSidebarTab] = useState<'summary' | 'billing'>('summary');
   const notesTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
-  const isEditable = q.status === 'DRAFT';
+  const isEditable = q && ['DRAFT', 'REVISION_REQUESTED', 'NEGOTIATION_REQUESTED'].includes(q.status);
 
   useEffect(() => {
     api.get('/products').then(r => setProducts(r.data.data));

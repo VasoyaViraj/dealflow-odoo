@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { X, TrendingUp, AlertTriangle, Loader2 } from 'lucide-react';
 import api from '../../lib/api';
+import { getSubscriptionPlans } from '../../lib/referenceData';
 import type { Subscription, ProratePreview, SubscriptionPlan } from '../../types/billing';
 
 function fmt(n: string | number) {
@@ -27,7 +28,7 @@ export function ProrationModal({ subscription, onClose, onSuccess, showToast }: 
   const [loadingPreview, setLoadingPreview] = useState(false);
 
   useEffect(() => {
-    api.get('/products/subscription-plans').then(r => setPlans(r.data.data)).catch(() => {});
+    getSubscriptionPlans().then(setPlans).catch(() => {});
   }, []);
 
   const selectedPlan = plans.find(p => p.id === newPlanId);

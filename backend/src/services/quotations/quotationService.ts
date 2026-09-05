@@ -149,41 +149,42 @@ export async function listQuotations(actor: AuthUser, filters: ListQuotationsFil
   const where = and(...conditions);
   const offset = (filters.page - 1) * filters.limit;
 
-  const rows = await db
-    .select({
-      id: quotations.id,
-      quotationNumber: quotations.quotationNumber,
-      customerId: quotations.customerId,
-      customerName: customers.name,
-      customerTier: customers.tier,
-      salesRepId: quotations.salesRepId,
-      status: quotations.status,
-      subtotal: quotations.subtotal,
-      discountAmount: quotations.discountAmount,
-      taxAmount: quotations.taxAmount,
-      grandTotal: quotations.grandTotal,
-      totalCost: quotations.totalCost,
-      margin: quotations.margin,
-      marginPercent: quotations.marginPercent,
-      riskScore: quotations.riskScore,
-      approvalLevel: quotations.approvalLevel,
-      version: quotations.version,
-      submittedAt: quotations.submittedAt,
-      createdAt: quotations.createdAt,
-      updatedAt: quotations.updatedAt,
-    })
-    .from(quotations)
-    .innerJoin(customers, eq(customers.id, quotations.customerId))
-    .where(where)
-    .orderBy(desc(quotations.createdAt))
-    .limit(filters.limit)
-    .offset(offset);
-
-  const [{ total }] = await db
-    .select({ total: sql<number>`count(*)::int` })
-    .from(quotations)
-    .innerJoin(customers, eq(customers.id, quotations.customerId))
-    .where(where);
+  const [rows, [{ total }]] = await Promise.all([
+    db
+      .select({
+        id: quotations.id,
+        quotationNumber: quotations.quotationNumber,
+        customerId: quotations.customerId,
+        customerName: customers.name,
+        customerTier: customers.tier,
+        salesRepId: quotations.salesRepId,
+        status: quotations.status,
+        subtotal: quotations.subtotal,
+        discountAmount: quotations.discountAmount,
+        taxAmount: quotations.taxAmount,
+        grandTotal: quotations.grandTotal,
+        totalCost: quotations.totalCost,
+        margin: quotations.margin,
+        marginPercent: quotations.marginPercent,
+        riskScore: quotations.riskScore,
+        approvalLevel: quotations.approvalLevel,
+        version: quotations.version,
+        submittedAt: quotations.submittedAt,
+        createdAt: quotations.createdAt,
+        updatedAt: quotations.updatedAt,
+      })
+      .from(quotations)
+      .innerJoin(customers, eq(customers.id, quotations.customerId))
+      .where(where)
+      .orderBy(desc(quotations.createdAt))
+      .limit(filters.limit)
+      .offset(offset),
+    db
+      .select({ total: sql<number>`count(*)::int` })
+      .from(quotations)
+      .innerJoin(customers, eq(customers.id, quotations.customerId))
+      .where(where),
+  ]);
 
   return {
     items: rows.map((row) => serializeSummary(row, actor)),

@@ -51,11 +51,15 @@ function relativeScore(best: number, actual: number): number {
 }
 
 /** Rolls a plan's allocations up into one shipment per warehouse. */
-export function buildShipments(plan: CandidatePlan, stock: WarehouseStock[]): PlanShipment[] {
+export function buildShipments(
+  plan: CandidatePlan,
+  stock: WarehouseStock[],
+  stockByWarehouse = new Map(stock.map((s) => [s.warehouseId, s])),
+): PlanShipment[] {
   const byWarehouse = new Map<string, PlanShipment>();
 
   for (const a of plan.allocations) {
-    const meta = stock.find((s) => s.warehouseId === a.warehouseId);
+    const meta = stockByWarehouse.get(a.warehouseId);
     const existing = byWarehouse.get(a.warehouseId);
 
     if (existing) {
@@ -75,7 +79,7 @@ export function buildShipments(plan: CandidatePlan, stock: WarehouseStock[]): Pl
   // One base charge per warehouse — that is what makes a split expensive and
   // why consolidating onto an already-open shipment is worth preferring.
   for (const shipment of byWarehouse.values()) {
-    const meta = stock.find((s) => s.warehouseId === shipment.warehouseId);
+    const meta = stockByWarehouse.get(shipment.warehouseId);
     const base = dec(meta?.shippingBaseCost ?? 0);
     const perUnit = dec(meta?.costPerUnit ?? 0).times(shipment.totalUnits);
     shipment.shippingCost = money(base.plus(perUnit));
@@ -89,7 +93,10 @@ export function buildShipments(plan: CandidatePlan, stock: WarehouseStock[]): Pl
  * Taking 5 of 5 units from a small depot is a bigger operational event than
  * taking 6 of 20 from a large one, even though the second moves more stock.
  */
-function depletionRatio(plan: CandidatePlan, stock: WarehouseStock[]): number {
+function depletionRatio(
+  plan: CandidatePlan,
+  stockByProductWarehouse: Map<string, WarehouseStock>,
+): number {
   let worst = 0;
 
   const takenPerRow = new Map<string, number>();
@@ -99,7 +106,7 @@ function depletionRatio(plan: CandidatePlan, stock: WarehouseStock[]): number {
   }
 
   for (const [k, taken] of takenPerRow) {
-    const row = stock.find((s) => `${s.productId}:${s.warehouseId}` === k);
+    const row = stockByProductWarehouse.get(k);
     if (!row || row.available <= 0) continue;
     worst = Math.max(worst, taken / row.available);
   }
@@ -119,8 +126,13 @@ interface PlanMetrics {
   priorityRank: number;
 }
 
-function measure(plan: CandidatePlan, stock: WarehouseStock[]): PlanMetrics {
-  const shipments = buildShipments(plan, stock);
+function measure(
+  plan: CandidatePlan,
+  stock: WarehouseStock[],
+  stockByWarehouse: Map<string, WarehouseStock>,
+  stockByProductWarehouse: Map<string, WarehouseStock>,
+): PlanMetrics {
+  const shipments = buildShipments(plan, stock, stockByWarehouse);
   const fulfilledUnits = plan.allocations.reduce((n, a) => n + a.quantity, 0);
   const backorderedUnits = plan.backorders.reduce((n, b) => n + b.quantity, 0);
 
@@ -133,7 +145,7 @@ function measure(plan: CandidatePlan, stock: WarehouseStock[]): PlanMetrics {
     shipmentCount: shipments.length,
     fulfilledUnits,
     backorderedUnits,
-    depletion: depletionRatio(plan, stock),
+    depletion: depletionRatio(plan, stockByProductWarehouse),
     priorityRank: shipments.reduce((n, s) => n + PRIORITY_RANK[s.priority], 0),
   };
 }
@@ -154,7 +166,9 @@ export function scorePlans(
 ): ScoredPlan[] {
   if (plans.length === 0) return [];
 
-  const measured = plans.map((p) => measure(p, stock));
+  const stockByWarehouse = new Map(stock.map((s) => [s.warehouseId, s]));
+  const stockByProductWarehouse = new Map(stock.map((s) => [`${s.productId}:${s.warehouseId}`, s]));
+  const measured = plans.map((p) => measure(p, stock, stockByWarehouse, stockByProductWarehouse));
 
   // Best-in-set baselines. Zero values are excluded rather than treated as the
   // best: a plan that ships nothing has no cost and no delivery time, and

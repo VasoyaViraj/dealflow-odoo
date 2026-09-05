@@ -14,6 +14,7 @@ import {
   warehouses,
   fulfillmentSettings,
 } from '../../db/schema.js';
+import { readFulfillmentWeightsCached } from '../configCache.js';
 import {
   type DemandLine,
   type FulfillmentSnapshot,
@@ -105,6 +106,8 @@ export async function loadSnapshot(
  * a fresh database never has to be migrated by hand before the engine runs.
  */
 export async function loadWeights(conn: Db = db): Promise<ScoringWeights> {
+  if (conn === db) return readFulfillmentWeightsCached();
+
   const [row] = await conn.select().from(fulfillmentSettings).where(eq(fulfillmentSettings.id, 1));
 
   if (!row) {

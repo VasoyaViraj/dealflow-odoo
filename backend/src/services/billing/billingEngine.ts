@@ -29,7 +29,7 @@
 import Decimal from 'decimal.js';
 import { db } from '../../db/index.js';
 import * as schema from '../../db/schema.js';
-import { eq, and, sql } from 'drizzle-orm';
+import { eq, and, inArray, sql } from 'drizzle-orm';
 import type { PgTransaction } from 'drizzle-orm/pg-core';
 import type { NodePgQueryResultHKT } from 'drizzle-orm/node-postgres';
 import type { ExtractTablesWithRelations } from 'drizzle-orm';
@@ -56,19 +56,22 @@ async function nextInvoiceNumber(tx: DbLike): Promise<string> {
   return `INV-${String(row.lastValue).padStart(6, '0')}`;
 }
 
-/** Allocate the next subscription number inside a transaction. */
-async function nextSubscriptionNumber(tx: DbLike): Promise<string> {
-  // Re-use the invoice_sequence table with offset 1_000_000 so numbers
-  // stay in a separate range without adding another single-row table.
-  // In production you'd use a dedicated sequence — this is fine for hackathon.
+async function reserveSubscriptionNumbers(tx: DbLike, count: number): Promise<string[]> {
+  if (count <= 0) return [];
+
   const [row] = await tx
     .update(schema.invoiceSequence)
-    .set({ lastValue: sql`${schema.invoiceSequence.lastValue} + 1` })
+    .set({ lastValue: sql`${schema.invoiceSequence.lastValue} + ${count}` })
     .where(eq(schema.invoiceSequence.id, 1))
     .returning({ lastValue: schema.invoiceSequence.lastValue });
 
-  const num = row?.lastValue ?? 1;
-  return `SUB-${String(num).padStart(6, '0')}`;
+  if (!row) {
+    await tx.insert(schema.invoiceSequence).values({ id: 1, lastValue: count }).onConflictDoNothing();
+    return Array.from({ length: count }, (_, i) => `SUB-${String(i + 1).padStart(6, '0')}`);
+  }
+
+  const first = row.lastValue - count + 1;
+  return Array.from({ length: count }, (_, i) => `SUB-${String(first + i).padStart(6, '0')}`);
 }
 
 /** 
@@ -251,93 +254,95 @@ export async function generateSubscriptions(quotationId: string, userId: string)
     throw new BillingError('NO_SUBSCRIPTION_LINES', 'No subscription lines found on this quotation');
   }
 
-  const results: (typeof schema.subscriptions.$inferSelect)[] = [];
+  const existingRows = await db
+    .select({ quotationLineId: schema.subscriptions.quotationLineId })
+    .from(schema.subscriptions)
+    .where(inArray(schema.subscriptions.quotationLineId, subLines.map((line) => line.id)));
 
-  for (const line of subLines) {
-    // Idempotency
-    const [existing] = await db
-      .select({ id: schema.subscriptions.id })
-      .from(schema.subscriptions)
-      .where(eq(schema.subscriptions.quotationLineId, line.id));
-    if (existing) continue;
+  const existingLineIds = new Set(existingRows.map((row) => row.quotationLineId));
+  const linesToCreate = subLines.filter((line) => !existingLineIds.has(line.id));
+  if (linesToCreate.length === 0) return [];
 
-    // Resolve billing cycle from the line's subscriptionPlanId or default to MONTHLY
-    let billingCycle: 'MONTHLY' | 'QUARTERLY' | 'YEARLY' = 'MONTHLY';
-    if (line.subscriptionPlanId) {
-      const [plan] = await db
-        .select()
-        .from(schema.subscriptionPlans)
-        .where(eq(schema.subscriptionPlans.id, line.subscriptionPlanId));
-      if (plan) billingCycle = plan.billingCycle;
-    }
+  const planIds = [...new Set(linesToCreate.map((line) => line.subscriptionPlanId).filter((id): id is string => Boolean(id)))];
+  const planRows = planIds.length > 0
+    ? await db.select().from(schema.subscriptionPlans).where(inArray(schema.subscriptionPlans.id, planIds))
+    : [];
+  const planById = new Map(planRows.map((plan) => [plan.id, plan]));
 
+  return db.transaction(async (tx) => {
+    const subscriptionNumbers = await reserveSubscriptionNumbers(tx, linesToCreate.length);
     const now = new Date();
-    const periodStart = now;
-    const periodEndDate = periodEnd(now, billingCycle);
-    const netCycleAmount = cycleNetAmount(line.quantity, line.unitPrice, line.discountPercent);
 
-    const subscription = await db.transaction(async (tx) => {
-      const subscriptionNumber = await nextSubscriptionNumber(tx);
+    const subscriptionRows = linesToCreate.map((line, index) => {
+      const plan = line.subscriptionPlanId ? planById.get(line.subscriptionPlanId) : undefined;
+      const billingCycle = plan?.billingCycle ?? 'MONTHLY';
+      const periodStart = new Date(now);
+      const periodEndDate = periodEnd(periodStart, billingCycle);
+      const netCycleAmount = cycleNetAmount(line.quantity, line.unitPrice, line.discountPercent).toFixed(2);
 
-      const [sub] = await tx
-        .insert(schema.subscriptions)
-        .values({
-          subscriptionNumber,
-          quotationId,
-          quotationLineId: line.id,
-          customerId: quotation.customerId,
-          productId: line.productId,
-          subscriptionPlanId: line.subscriptionPlanId,
-          productName: line.productName,
-          billingCycle,
-          quantity: line.quantity,
-          unitPrice: line.unitPrice,
-          discountPercent: line.discountPercent,
-          taxRate: line.taxRate,
-          cycleAmount: netCycleAmount.toFixed(2),
-          status: 'ACTIVE',
-          currentPeriodStart: periodStart,
-          currentPeriodEnd: periodEndDate,
-          nextBillingDate: periodEndDate,
-          createdBy: userId,
-        })
-        .returning();
+      return {
+        subscriptionNumber: subscriptionNumbers[index],
+        quotationId,
+        quotationLineId: line.id,
+        customerId: quotation.customerId,
+        productId: line.productId,
+        subscriptionPlanId: line.subscriptionPlanId,
+        productName: line.productName,
+        billingCycle,
+        quantity: line.quantity,
+        unitPrice: line.unitPrice,
+        discountPercent: line.discountPercent,
+        taxRate: line.taxRate,
+        cycleAmount: netCycleAmount,
+        status: 'ACTIVE' as const,
+        currentPeriodStart: periodStart,
+        currentPeriodEnd: periodEndDate,
+        nextBillingDate: periodEndDate,
+        createdBy: userId,
+      };
+    });
 
-      // Pre-generate billing schedule
-      const scheduleEntries: Array<typeof schema.billingScheduleEntries.$inferInsert> = [];
-      let cursor = new Date(periodEndDate);
-      const count = scheduleCount(billingCycle);
+    const created = await tx.insert(schema.subscriptions).values(subscriptionRows).returning();
+    const createdByLineId = new Map(created.map((sub) => [sub.quotationLineId, sub]));
+
+    const scheduleEntries: Array<typeof schema.billingScheduleEntries.$inferInsert> = [];
+    const auditRows: Array<typeof schema.auditLogs.$inferInsert> = [];
+
+    for (const row of subscriptionRows) {
+      const sub = createdByLineId.get(row.quotationLineId);
+      if (!sub) continue;
+
+      let cursor = new Date(row.currentPeriodEnd);
+      const count = scheduleCount(row.billingCycle);
       for (let i = 0; i < count; i++) {
         scheduleEntries.push({
           subscriptionId: sub.id,
           dueDate: new Date(cursor),
-          amount: netCycleAmount.toFixed(2),
+          amount: row.cycleAmount,
           status: 'UPCOMING',
         });
-        cursor = periodEnd(cursor, billingCycle);
+        cursor = periodEnd(cursor, row.billingCycle);
       }
-      await tx.insert(schema.billingScheduleEntries).values(scheduleEntries);
 
-      await tx.insert(schema.auditLogs).values({
+      auditRows.push({
         userId,
         action: 'SUBSCRIPTION_CREATED',
         entityType: 'subscription',
         entityId: sub.id,
         metadata: {
-          quotationLineId: line.id,
-          productName: line.productName,
-          billingCycle,
-          cycleAmount: netCycleAmount.toFixed(2),
+          quotationLineId: row.quotationLineId,
+          productName: row.productName,
+          billingCycle: row.billingCycle,
+          cycleAmount: row.cycleAmount,
         },
       });
+    }
 
-      return sub;
-    });
+    if (scheduleEntries.length > 0) await tx.insert(schema.billingScheduleEntries).values(scheduleEntries);
+    if (auditRows.length > 0) await tx.insert(schema.auditLogs).values(auditRows);
 
-    results.push(subscription);
-  }
-
-  return results;
+    return created;
+  });
 }
 
 // ─── getBillingSummary ────────────────────────────────────────────────────────
@@ -350,33 +355,43 @@ export async function getBillingSummary(quotationId: string) {
   const quotation = await loadQuotation(quotationId);
   if (!quotation) throw new BillingError('QUOTATION_NOT_FOUND', 'Quotation not found');
 
-  const [invoice] = await db
-    .select()
-    .from(schema.invoices)
-    .where(and(
-      eq(schema.invoices.quotationId, quotationId),
-      eq(schema.invoices.type, 'ONE_TIME'),
-    ));
+  const [invoiceRows, subs] = await Promise.all([
+    db
+      .select()
+      .from(schema.invoices)
+      .where(and(
+        eq(schema.invoices.quotationId, quotationId),
+        eq(schema.invoices.type, 'ONE_TIME'),
+      )),
+    db
+      .select()
+      .from(schema.subscriptions)
+      .where(eq(schema.subscriptions.quotationId, quotationId)),
+  ]);
 
-  const subs = await db
-    .select()
-    .from(schema.subscriptions)
-    .where(eq(schema.subscriptions.quotationId, quotationId));
+  const scheduleRows = subs.length > 0
+    ? await db
+      .select()
+      .from(schema.billingScheduleEntries)
+      .where(inArray(schema.billingScheduleEntries.subscriptionId, subs.map((sub) => sub.id)))
+      .orderBy(schema.billingScheduleEntries.subscriptionId, schema.billingScheduleEntries.dueDate)
+    : [];
 
-  const subsWithSchedules = await Promise.all(
-    subs.map(async (sub) => {
-      const scheduleEntries = await db
-        .select()
-        .from(schema.billingScheduleEntries)
-        .where(eq(schema.billingScheduleEntries.subscriptionId, sub.id))
-        .orderBy(schema.billingScheduleEntries.dueDate);
-      return { ...sub, scheduleEntries };
-    }),
-  );
+  const schedulesBySubscriptionId = new Map<string, typeof scheduleRows>();
+  for (const row of scheduleRows) {
+    const rows = schedulesBySubscriptionId.get(row.subscriptionId) ?? [];
+    rows.push(row);
+    schedulesBySubscriptionId.set(row.subscriptionId, rows);
+  }
+
+  const subsWithSchedules = subs.map((sub) => ({
+    ...sub,
+    scheduleEntries: schedulesBySubscriptionId.get(sub.id) ?? [],
+  }));
 
   return {
     quotationId,
-    invoice: invoice ?? null,
+    invoice: invoiceRows[0] ?? null,
     subscriptions: subsWithSchedules,
   };
 }
@@ -444,6 +459,13 @@ export async function calculateProration(
     throw new BillingError('SUBSCRIPTION_NOT_ACTIVE', 'Subscription is not active');
   }
 
+  return calculateProrationForSubscription(sub, newQuantity);
+}
+
+function calculateProrationForSubscription(
+  sub: typeof schema.subscriptions.$inferSelect,
+  newQuantity?: number,
+): { proratedAmount: string; credit: string; newCharge: string; remainingDays: number } {
   const today = new Date();
   const periodStartMs = sub.currentPeriodStart.getTime();
   const periodEndMs   = sub.currentPeriodEnd.getTime();
@@ -495,7 +517,7 @@ export async function modifySubscription(
   }
 
   const proration = patch.quantity
-    ? await calculateProration(subscriptionId, patch.quantity)
+    ? calculateProrationForSubscription(sub, patch.quantity)
     : null;
 
   let newUnitNetPrice = sub.unitPrice;
@@ -503,11 +525,15 @@ export async function modifySubscription(
   let newPlanId = sub.subscriptionPlanId;
 
   if (patch.planId && patch.planId !== sub.subscriptionPlanId) {
-    const [plan] = await db.select().from(schema.subscriptionPlans).where(eq(schema.subscriptionPlans.id, patch.planId));
+    const [[plan], [oldPlan]] = await Promise.all([
+      db.select().from(schema.subscriptionPlans).where(eq(schema.subscriptionPlans.id, patch.planId)),
+      sub.subscriptionPlanId
+        ? db.select().from(schema.subscriptionPlans).where(eq(schema.subscriptionPlans.id, sub.subscriptionPlanId))
+        : Promise.resolve([]),
+    ]);
     if (!plan) throw new BillingError('VALIDATION_ERROR', 'New subscription plan not found');
     
     // Reverse the old multiplier
-    const [oldPlan] = await db.select().from(schema.subscriptionPlans).where(eq(schema.subscriptionPlans.id, sub.subscriptionPlanId!));
     const basePrice = oldPlan ? new Decimal(sub.unitPrice).div(oldPlan.priceMultiplier).toString() : sub.unitPrice;
     
     newUnitNetPrice = new Decimal(basePrice).times(plan.priceMultiplier).toString();
@@ -645,7 +671,24 @@ export async function listInvoices(
   const offset = (filters.page - 1) * filters.limit;
 
   const query = db
-    .select()
+    .select({
+      id: schema.invoices.id,
+      invoiceNumber: schema.invoices.invoiceNumber,
+      quotationId: schema.invoices.quotationId,
+      customerId: schema.invoices.customerId,
+      subscriptionId: schema.invoices.subscriptionId,
+      type: schema.invoices.type,
+      status: schema.invoices.status,
+      subtotal: schema.invoices.subtotal,
+      discountAmount: schema.invoices.discountAmount,
+      taxAmount: schema.invoices.taxAmount,
+      grandTotal: schema.invoices.grandTotal,
+      dueDate: schema.invoices.dueDate,
+      paidAt: schema.invoices.paidAt,
+      createdBy: schema.invoices.createdBy,
+      createdAt: schema.invoices.createdAt,
+      updatedAt: schema.invoices.updatedAt,
+    })
     .from(schema.invoices)
     .orderBy(sql`${schema.invoices.createdAt} DESC`)
     .limit(filters.limit)
@@ -676,7 +719,31 @@ export async function listSubscriptions(
   const offset = (filters.page - 1) * filters.limit;
 
   const query = db
-    .select()
+    .select({
+      id: schema.subscriptions.id,
+      subscriptionNumber: schema.subscriptions.subscriptionNumber,
+      quotationId: schema.subscriptions.quotationId,
+      quotationLineId: schema.subscriptions.quotationLineId,
+      customerId: schema.subscriptions.customerId,
+      productId: schema.subscriptions.productId,
+      subscriptionPlanId: schema.subscriptions.subscriptionPlanId,
+      productName: schema.subscriptions.productName,
+      billingCycle: schema.subscriptions.billingCycle,
+      quantity: schema.subscriptions.quantity,
+      unitPrice: schema.subscriptions.unitPrice,
+      discountPercent: schema.subscriptions.discountPercent,
+      taxRate: schema.subscriptions.taxRate,
+      cycleAmount: schema.subscriptions.cycleAmount,
+      status: schema.subscriptions.status,
+      currentPeriodStart: schema.subscriptions.currentPeriodStart,
+      currentPeriodEnd: schema.subscriptions.currentPeriodEnd,
+      nextBillingDate: schema.subscriptions.nextBillingDate,
+      cancelledAt: schema.subscriptions.cancelledAt,
+      lastProratedAmount: schema.subscriptions.lastProratedAmount,
+      createdBy: schema.subscriptions.createdBy,
+      createdAt: schema.subscriptions.createdAt,
+      updatedAt: schema.subscriptions.updatedAt,
+    })
     .from(schema.subscriptions)
     .orderBy(sql`${schema.subscriptions.createdAt} DESC`)
     .limit(filters.limit)

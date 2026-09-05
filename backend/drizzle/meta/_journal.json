@@ -36,6 +36,13 @@
       "when": 1788637786841,
       "tag": "0004_clammy_jasper_sitwell",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1788641359460,
+      "tag": "0005_performance_indexes",
+      "breakpoints": true
     }
   ]
 }

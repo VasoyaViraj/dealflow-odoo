@@ -13,7 +13,18 @@ const router = Router();
 router.get('/', requireAuth, async (_req, res) => {
   try {
     const rows = await db
-      .select()
+      .select({
+        id: products.id,
+        name: products.name,
+        sku: products.sku,
+        description: products.description,
+        category: products.category,
+        unitPrice: products.unitPrice,
+        taxRate: products.taxRate,
+        isActive: products.isActive,
+        createdAt: products.createdAt,
+        updatedAt: products.updatedAt,
+      })
       .from(products)
       .where(eq(products.isActive, true))
       .orderBy(products.category, products.name);

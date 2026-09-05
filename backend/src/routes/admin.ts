@@ -8,7 +8,7 @@
 
 import { Router } from 'express';
 import { z } from 'zod';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import {
   customers,
@@ -23,6 +23,7 @@ import {
   auditLogs,
 } from '../db/schema.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
+import { clearFulfillmentWeightsCache, clearPricingConfigCache } from '../services/configCache.js';
 
 const router = Router();
 const adminOnly = [requireAuth, requireRole(['ADMIN'])];
@@ -185,6 +186,7 @@ router.put('/discount-tiers/:id', ...adminOnly, async (req, res) => {
       .returning();
 
     if (!row) return res.status(404).json({ success: false, error: 'Tier config not found' });
+    clearPricingConfigCache();
     await logAudit(req.user!.id, 'DISCOUNT_TIER_UPDATED', 'DISCOUNT_TIER_CONFIG', row.id, {
       tier: row.tier, maxDiscountPct: row.maxDiscountPct,
     });
@@ -220,6 +222,7 @@ router.put('/category-limits/:id', ...adminOnly, async (req, res) => {
       .returning();
 
     if (!row) return res.status(404).json({ success: false, error: 'Category limit not found' });
+    clearPricingConfigCache();
     await logAudit(req.user!.id, 'CATEGORY_LIMIT_UPDATED', 'CATEGORY_DISCOUNT_LIMIT', row.id, {
       category: row.category, maxDiscountPct: row.maxDiscountPct,
     });
@@ -348,12 +351,10 @@ router.put('/inventory', ...adminOnly, async (req, res) => {
     const { productId, warehouseId, quantity } = parsed.data;
 
     // Upsert: update if exists, insert if not
-    const existing = await db
+    const [match] = await db
       .select()
       .from(inventory)
-      .where(eq(inventory.productId, productId));
-
-    const match = existing.find(e => e.warehouseId === warehouseId);
+      .where(and(eq(inventory.productId, productId), eq(inventory.warehouseId, warehouseId)));
 
     let row;
     if (match) {
@@ -465,6 +466,7 @@ router.put('/fulfillment-settings', ...adminOnly, async (req, res) => {
       .where(eq(fulfillmentSettings.id, 1))
       .returning();
 
+    clearFulfillmentWeightsCache();
     await logAudit(req.user!.id, 'FULFILLMENT_WEIGHTS_UPDATED', 'FULFILLMENT_SETTINGS', '1', parsed.data);
     res.json({ success: true, data: row });
   } catch (err) {

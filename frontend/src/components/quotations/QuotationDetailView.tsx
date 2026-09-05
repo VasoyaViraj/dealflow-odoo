@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { ArrowLeft, Plus, Trash2, RefreshCw, Send, AlertCircle } from 'lucide-react';
 import api from '../../lib/api';
+import { getProducts } from '../../lib/referenceData';
 import { statusColor, formatCurrency } from './QuotationListTable';
 
 interface Product {
   id: string;
   name: string;
-  sku?: string;
+  sku: string | null;
 }
 
 interface Props {
@@ -33,10 +34,10 @@ export default function QuotationDetailView({ quotationId, onBack, renderSidePan
       setError(null);
       const [qRes, pRes] = await Promise.all([
         api.get(`/quotations/${quotationId}`),
-        canEdit ? api.get('/products') : Promise.resolve({ data: { data: [] } })
+        canEdit ? getProducts() : Promise.resolve([])
       ]);
       setQuotation(qRes.data.data);
-      if (canEdit) setProducts(pRes.data.data);
+      if (canEdit) setProducts(pRes);
     } catch (err: any) {
       setError(err.response?.data?.error?.message || 'Failed to load quotation');
     } finally {

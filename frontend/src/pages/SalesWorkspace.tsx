@@ -1,14 +1,15 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import AppShell from '../components/layout/AppShell';
-import api from '../lib/api';
-import FulfillmentPanel from '../components/fulfillment/FulfillmentPanel';
-import { BillingOverview } from '../components/billing/BillingOverview';
 import {
   Plus, ArrowLeft, ShoppingCart, Package, RefreshCw,
   Trash2, AlertTriangle, CheckCircle, ChevronRight,
-  TrendingUp, Zap, FileText, Clock, Minus,
-  Tag, Search, Send, X, Star, Info,
+  Search, Send, X, Star, Info,
+  FileText, Minus, Clock
 } from 'lucide-react';
+import api from '../lib/api';
+import FulfillmentPanel from '../components/fulfillment/FulfillmentPanel';
+import { BillingOverview } from '../components/billing/BillingOverview';
+import type { SubscriptionPlan } from '../types/billing';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -361,7 +362,7 @@ function QuotationBuilderView({
   const [notes, setNotes] = useState(initialQuotation.notes ?? '');
   const [orderDiscount, setOrderDiscount] = useState(initialQuotation.quotationDiscountPercent ?? '0');
   const [sidebarTab, setSidebarTab] = useState<'summary' | 'billing'>('summary');
-  const notesTimer = useRef<ReturnType<typeof setTimeout>>();
+  const notesTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const isEditable = q.status === 'DRAFT';
 

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import api from '../../lib/api';
 import {
   X, AlertTriangle, CheckCircle, XCircle, RotateCcw,
-  ChevronRight, Shield, FileText, Clock, User, TrendingDown
+  Shield, FileText, Clock, User, TrendingDown
 } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────

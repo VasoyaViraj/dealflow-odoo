@@ -31,7 +31,7 @@ export function QuotationBuilderView({
   const [submitted, setSubmitted] = useState(false);
   const [notes, setNotes] = useState(initialQuotation.notes ?? '');
   const [orderDiscount, setOrderDiscount] = useState(initialQuotation.quotationDiscountPercent ?? '0');
-  const notesTimer = useRef<ReturnType<typeof setTimeout>>();
+  const notesTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const isEditable = q.status === 'DRAFT';
 

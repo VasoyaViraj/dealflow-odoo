@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Save, Plus, Trash2, RefreshCw, Send, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, RefreshCw, Send, AlertCircle } from 'lucide-react';
 import api from '../../lib/api';
 import { statusColor, formatCurrency } from './QuotationListTable';
 

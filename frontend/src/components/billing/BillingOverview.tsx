@@ -110,7 +110,7 @@ export function BillingOverview({ quotationId, userRole, showToast }: BillingOve
     }
   };
 
-  const handleGenerateInvoice = async (subscriptionId: string) => {
+  const handleSubscriptionInvoice = async (subscriptionId: string) => {
     try {
       await api.post(`/subscriptions/${subscriptionId}/invoice-next-cycle`);
       showToast('Generated invoice for next cycle');
@@ -229,7 +229,7 @@ export function BillingOverview({ quotationId, userRole, showToast }: BillingOve
                   canModify={canBill}
                   onModify={() => setModifySub(sub)}
                   onCancel={() => setCancelSub(sub)}
-                  onGenerateInvoice={() => handleGenerateInvoice(sub.id)}
+                  onGenerateInvoice={() => handleSubscriptionInvoice(sub.id)}
                 />
                 {/* Billing schedule for each subscription */}
                 {sub.scheduleEntries && sub.scheduleEntries.length > 0 && (

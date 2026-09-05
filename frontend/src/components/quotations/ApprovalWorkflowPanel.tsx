@@ -166,7 +166,7 @@ export default function ApprovalWorkflowPanel({ quotationId, currentStatus, isMa
         
         {history.length > 0 ? (
           <div className="space-y-4">
-            {history.map((item, idx) => (
+            {history.map((item) => (
               <div key={item.id} className="relative pl-6 border-l-2 border-zinc-800 last:border-transparent pb-4">
                 <div className="absolute w-3 h-3 bg-zinc-700 rounded-full -left-[7px] top-1.5 border-2 border-zinc-900"></div>
                 <div className="flex justify-between items-start mb-1">

@@ -2,8 +2,8 @@ import { useState, useEffect, useCallback } from 'react';
 import AppShell from '../components/layout/AppShell';
 import api from '../lib/api';
 import {
-  Users, Package, Percent, Warehouse, BarChart3, RefreshCw, Truck,
-  Plus, Pencil, Check, X, AlertCircle, ChevronDown, Boxes
+  Users, Package, Percent, Warehouse, RefreshCw, Truck,
+  Plus, Pencil, Check, X, AlertCircle, Boxes
 } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────

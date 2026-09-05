@@ -69,7 +69,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
       {/* Sidebar */}
       <aside className="w-64 flex flex-col bg-zinc-900 border-r border-zinc-800 shrink-0">
         {/* Logo */}
-        <div className="flex items-center gap-3 px-6 py-5 border-b border-zinc-800">
+        <div data-onboarding-id="app-logo" className="flex items-center gap-3 px-6 py-5 border-b border-zinc-800">
           <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center shadow-lg">
             <Zap size={16} className="text-white" />
           </div>
@@ -80,7 +80,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 px-3 py-4 space-y-1">
+        <nav data-onboarding-id="sidebar-nav" className="flex-1 px-3 py-4 space-y-1">
           {visibleNav.map((item) => (
             <NavLink
               key={item.to}
@@ -101,7 +101,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
 
         {/* User info */}
         {user && (
-          <div className="border-t border-zinc-800 p-4">
+          <div data-onboarding-id="user-info" className="border-t border-zinc-800 p-4">
             <div className="flex items-center gap-3 mb-3">
               <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-white text-xs font-bold">
                 {user.firstName[0]}{user.lastName[0]}

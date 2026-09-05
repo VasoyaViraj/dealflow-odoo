@@ -79,6 +79,7 @@ export const users = pgTable('users', {
   role: userRoleEnum('role').notNull(),
   status: userStatusEnum('status').notNull().default('ACTIVE'),
   lastLoginAt: timestamp('last_login_at'),
+  hasCompletedOnboarding: boolean('has_completed_onboarding').notNull().default(false),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });

@@ -12,6 +12,7 @@ import quotationsRouter from './routes/quotations.js';
 import approvalsRouter from './routes/approvals.js';
 import fulfillmentRouter from './routes/fulfillment.js';
 import billingRouter from './routes/billing.js';
+import userRouter from './routes/user.js';
 
 import { requireAuth } from './middleware/auth.js';
 
@@ -55,6 +56,9 @@ app.use('/api/v1', fulfillmentRouter);
 // Mounted at the version root so billing paths can straddle both
 // /quotations/:id/billing/* and /invoices/* / /subscriptions/* cleanly.
 app.use('/api/v1', billingRouter);
+
+// ─── Phase 8: User profile / onboarding routes ──────────────────────────────
+app.use('/api/v1/user', userRouter);
 
 // ─── Legacy welcome endpoint ─────────────────────────────────────────────────
 app.get('/api/v1/welcome', requireAuth, (req, res) => {

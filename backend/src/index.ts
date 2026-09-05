@@ -10,6 +10,7 @@ import customersRouter from './routes/customers.js';
 import discountConfigRouter from './routes/discountConfig.js';
 import quotationsRouter from './routes/quotations.js';
 import approvalsRouter from './routes/approvals.js';
+import fulfillmentRouter from './routes/fulfillment.js';
 
 import { requireAuth } from './middleware/auth.js';
 
@@ -20,7 +21,7 @@ app.use(express.json());
 
 // ─── Health check ────────────────────────────────────────────────────────────
 app.get('/health', (_req, res) => {
-  res.json({ status: 'ok', version: 'phase-3+4' });
+  res.json({ status: 'ok', version: 'phase-3+4+5' });
 });
 
 // ─── Auth routes ─────────────────────────────────────────────────────────────
@@ -42,6 +43,12 @@ app.use('/api/v1/admin', adminRouter);
 
 // ─── Phase 4: Approval engine routes ──────────────────────────────────────────
 app.use('/api/v1', approvalsRouter);
+
+// ─── Phase 5: Fulfillment engine routes ──────────────────────────────────────
+// Mounted at the version root because its paths straddle two resources:
+// /quotations/:id/fulfillment/* and /fulfillment/*. Like the approval router,
+// authorization is per-quotation inside the router, not by role here.
+app.use('/api/v1', fulfillmentRouter);
 
 // ─── Legacy welcome endpoint ─────────────────────────────────────────────────
 app.get('/api/v1/welcome', requireAuth, (req, res) => {

@@ -103,6 +103,7 @@
 | 2 | Master data (customers, products, discount tiers, warehouses, inventory, subscription plans) | ✅ Complete |
 | 3 | Quotation Engine (create, add/edit/remove lines, totals, risk score, submit) | ✅ Complete |
 | 4 | Approval Workflow (queue, approve, reject, return for revision, audit trail) | ✅ Complete |
+| 5 | Fulfillment Engine (weighted plan scoring, warehouse split, manual override, backorder consolidation) | ✅ Complete |
 
 ### Frontend — **Partially Complete**
 
@@ -117,12 +118,13 @@
 | `AppShell.tsx` | ✅ Complete | Dark sidebar, role-aware nav, user info, logout |
 | `SalesWorkspace.tsx` | ✅ **Newly built** | Quotation list → builder → submit flow (see §7) |
 | `CustomerPortal.tsx` | ✅ **Newly built** | Quotation list → detail → negotiation → confirm (see §8) |
+| `FulfillmentWorkspace.tsx` | ✅ Complete | `/fulfillment` — ops queue + split panel (Finance/Ops, Admin) |
+| `FulfillmentPanel.tsx` | ✅ Complete | Recommendation, reasons, score breakdown, alternatives, accept/override, consolidate |
 
 ### Pending / Not Yet Built
 
 | Feature | Why Missing | Estimated Effort |
 |---|---|---|
-| Fulfillment / Warehouse Split screen | No backend `/fulfillment` endpoints exist | 2–3 days (backend + frontend) |
 | Subscription & Billing screen | No `/subscriptions` billing endpoint exists | 2–3 days |
 | Deal Health & Anomaly Dashboard | No `/deal-health` backend endpoint | 1–2 days |
 | Customer negotiation POST endpoint | Backend only has read access for CUSTOMER role | 0.5 day backend |
@@ -213,6 +215,19 @@ All endpoints require `Authorization: Bearer <token>` except `/auth/login` and `
 | POST | `/quotations/:id/request-revision` | `SALES_MANAGER`, `FINANCE_OPERATIONS` | Return for revision (body: `{ reason: string }`) |
 | GET | `/approval-queue` | `SALES_MANAGER`, `FINANCE_OPERATIONS` | List quotations pending caller's approval level |
 
+### Fulfillment (Phase 5)
+
+| Method | Endpoint | Role | Description |
+|---|---|---|---|
+| GET | `/quotations/:id/fulfillment/plan` | Rep (own), Mgr, Finance, Admin | Recommended split + scored alternatives + backorders. Read-only, reserves nothing. |
+| POST | `/quotations/:id/fulfillment` | Rep (own), Finance, Admin | Accept the recommendation, or override with `{ allocations: [{ quotationLineId, warehouseId, quantity }] }`. **Decrements `inventory`.** |
+| GET | `/quotations/:id/fulfillment` | Rep (own), Mgr, Finance, Admin | The accepted split + `canConsolidate` |
+| POST | `/fulfillment/:id/consolidate` | Rep (own), Finance, Admin | Re-plan the outstanding backorder against stock that has since arrived |
+| GET | `/fulfillment` | Rep (own), Mgr, Finance, Admin | Operations queue (`status`, `page`, `limit`) |
+
+Fulfillment opens only when a quotation reaches `APPROVED`. `fulfillment_orders.quotation_id`
+is UNIQUE, so a second confirm returns `409 FULFILLMENT_EXISTS` rather than taking stock twice.
+
 ### Admin (ADMIN only)
 
 | Method | Endpoint | Description |
@@ -230,6 +245,8 @@ All endpoints require `Authorization: Bearer <token>` except `/auth/login` and `
 | GET | `/admin/inventory` | Stock levels per product per warehouse |
 | PUT | `/admin/inventory` | Update stock quantity |
 | GET/POST | `/admin/subscription-plans` | List / create subscription plans |
+| PUT | `/admin/warehouses/:id` | Also sets `shippingBaseCost`, `costPerUnit`, `deliveryDays`, `priority` |
+| GET/PUT | `/admin/fulfillment-settings` | The five fulfillment scoring weights (must sum to 100) |
 
 ---
 
@@ -331,6 +348,10 @@ frontend/src/
 | `quotations` | Quotation header with all totals + risk score |
 | `quotation_lines` | Individual product lines with pricing snapshot |
 | `quotation_sequence` | Sequential number generator (QUO-000001 format) |
+| `fulfillment_orders` | One accepted warehouse split per quotation (unique `quotation_id`) |
+| `fulfillment_shipments` | One row per warehouse used — the unit of shipping cost |
+| `fulfillment_allocations` | Line-level detail; a backorder is the same row with a null warehouse |
+| `fulfillment_settings` | The five fulfillment scoring weights (single row) |
 | `approval_history` | Per-quotation approval decisions with timestamps |
 
 ---
@@ -351,9 +372,6 @@ POST /api/v1/quotations/:id/confirm
 Roles: CUSTOMER (own quotation, status must be APPROVED)
 Transitions: APPROVED → CONFIRMED
 ```
-
-### Fulfillment Split
-Requires new tables (`fulfillment_orders`, `fulfillment_lines`) and a split algorithm that reads `inventory` table and suggests warehouse allocation. The UI mockup shows warehouse name, quantity fulfilled, shipment count/cost.
 
 ### Subscription Billing
 Requires a `subscriptions` table tracking active subscription lines per order, billing schedule, next billing date, proration logic. Admin already has subscription plan creation.
@@ -384,4 +402,10 @@ Requires a reporting query or materialized view that identifies:
 
 8. **Font:** Geist Variable. Loaded via `@fontsource-variable/geist` in `index.css`. Do not import another font without removing this.
 
-9. **Design tokens:** The colour palette is zinc/violet/dark. Do not add new accent colours — use the existing CSS variable tokens defined in `index.css`.
+9. **Fulfillment scores are relative.** Shipping cost, delivery time and shipment count are scored against the best plan *in the candidate set*, so a plan's score only means something next to the alternatives it was ranked with. Completeness is absolute on purpose — every strategy sources the same total, so a relative completeness score would hide a backorder entirely.
+
+10. **Services and subscriptions are not "out of stock".** A product with no `inventory` rows anywhere is non-stocked: excluded from planning and from the completeness denominator. Treating it as unavailable would backorder every services line on every mixed quotation.
+
+11. **There is no distance model.** Shipping cost is `shippingBaseCost + costPerUnit × units` per warehouse and delivery is `warehouse.deliveryDays`. No latitude/longitude, no Haversine — the five scoring weights sum to 100 without a distance term.
+
+12. **Design tokens:** The colour palette is zinc/violet/dark. Do not add new accent colours — use the existing CSS variable tokens defined in `index.css`.

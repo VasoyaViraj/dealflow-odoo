@@ -7,6 +7,7 @@ import SalesWorkspace from './pages/SalesWorkspace';
 import ManagerDashboard from './pages/ManagerDashboard';
 import FinanceDashboard from './pages/FinanceDashboard';
 import CustomerPortal from './pages/CustomerPortal';
+import FulfillmentWorkspace from './pages/FulfillmentWorkspace';
 
 function App() {
   return (
@@ -52,6 +53,18 @@ function App() {
             element={
               <RoleGuard roles={['FINANCE_OPERATIONS']}>
                 <FinanceDashboard />
+              </RoleGuard>
+            }
+          />
+
+          {/* Fulfillment / Warehouse split — operations owns the decision, and
+              Admin can drive it in a demo. A rep confirms their own deal's
+              split from inside the Sales Workspace instead. */}
+          <Route
+            path="/fulfillment/*"
+            element={
+              <RoleGuard roles={['FINANCE_OPERATIONS', 'ADMIN']}>
+                <FulfillmentWorkspace />
               </RoleGuard>
             }
           />

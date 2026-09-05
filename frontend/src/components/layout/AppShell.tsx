@@ -8,6 +8,7 @@ import {
   DollarSign,
   Globe,
   Settings,
+  Truck,
   LogOut,
   Zap,
 } from 'lucide-react';
@@ -25,6 +26,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Sales Workspace', to: '/sales',   icon: <ShoppingCart size={18} />,  roles: ['SALES_REPRESENTATIVE'] },
   { label: 'Approvals',      to: '/manager', icon: <CheckSquare size={18} />,   roles: ['SALES_MANAGER'] },
   { label: 'Finance',        to: '/finance', icon: <DollarSign size={18} />,    roles: ['FINANCE_OPERATIONS'] },
+  { label: 'Fulfillment',    to: '/fulfillment', icon: <Truck size={18} />,     roles: ['FINANCE_OPERATIONS', 'ADMIN'] },
   { label: 'My Portal',      to: '/portal',  icon: <Globe size={18} />,         roles: ['CUSTOMER'] },
 ];
 

@@ -136,6 +136,18 @@ async function seed() {
       taxRate: '18',
     },
     {
+      // Deliberately under-stocked below (2 units in one warehouse only) so the
+      // backorder and "Consolidate Remaining Backorder" flow can be demoed
+      // without editing inventory first.
+      name: 'Docking Station',
+      sku: 'HW-DOCK-001',
+      description: 'Universal USB-C docking station',
+      category: 'HARDWARE',
+      unitPrice: '250.00',
+      costPrice: '150.00',
+      taxRate: '18',
+    },
+    {
       name: 'Extended Warranty',
       sku: 'SVC-WARR-001',
       description: '3-year extended warranty for hardware products',
@@ -220,9 +232,21 @@ async function seed() {
   // ─── 7. Warehouses ───────────────────────────────────────────────────────
   console.log('\n🏭 Seeding warehouses...');
 
-  const warehouseData = [
-    { name: 'Main Warehouse', location: 'Building A, Floor 1' },
-    { name: 'East Depot',     location: 'East Industrial Zone' },
+  // Three warehouses with genuinely different economics — this is what gives
+  // the fulfillment planner something to decide. Main is nearby, quick and
+  // cheap to open but thin on stock; West is slow and expensive to open but
+  // deep and cheap per unit. The engine's job is to trade those off.
+  const warehouseData: Array<{
+    name: string;
+    location: string;
+    shippingBaseCost: string;
+    costPerUnit: string;
+    deliveryDays: number;
+    priority: 'HIGH' | 'MEDIUM' | 'LOW';
+  }> = [
+    { name: 'Main Warehouse', location: 'Building A, Floor 1',   shippingBaseCost: '200.00', costPerUnit: '15.00', deliveryDays: 1, priority: 'HIGH' },
+    { name: 'East Depot',     location: 'East Industrial Zone',  shippingBaseCost: '350.00', costPerUnit: '12.00', deliveryDays: 2, priority: 'MEDIUM' },
+    { name: 'West Depot',     location: 'West Logistics Park',   shippingBaseCost: '700.00', costPerUnit: '8.00',  deliveryDays: 4, priority: 'LOW' },
   ];
 
   const seededWarehouses: Record<string, string> = {}; // name → id
@@ -230,21 +254,36 @@ async function seed() {
   for (const w of warehouseData) {
     const existing = await db.select().from(schema.warehouses).where(eq(schema.warehouses.name, w.name));
     if (existing.length > 0) {
-      seededWarehouses[w.name] = existing[0].id;
-      console.log(`  ↳ ${w.name} already exists`);
+      // Re-seeding an older database: the warehouse predates the fulfillment
+      // columns, so refresh the economics rather than leaving them at zero —
+      // a zero-cost, zero-day warehouse would win every plan by default.
+      const [updated] = await db.update(schema.warehouses)
+        .set({ ...w, updatedAt: new Date() })
+        .where(eq(schema.warehouses.id, existing[0].id))
+        .returning();
+      seededWarehouses[w.name] = updated.id;
+      console.log(`  ↻ ${w.name} — refreshed shipping config`);
     } else {
       const [inserted] = await db.insert(schema.warehouses).values({ ...w, isActive: true }).returning();
       seededWarehouses[w.name] = inserted.id;
-      console.log(`  ✓ Created warehouse: ${w.name}`);
+      console.log(`  ✓ Created warehouse: ${w.name} (₹${w.shippingBaseCost} base, ${w.deliveryDays}d)`);
     }
   }
 
   // ─── 8. Inventory ────────────────────────────────────────────────────────
   console.log('\n📦 Seeding inventory...');
 
+  // Laptop 3 / 5 / 20 is the spec's worked example: 6 laptops cannot come from
+  // Main alone, so the planner must choose between "one shipment from West" and
+  // "split Main + East" — and show the loser as a scored alternative.
+  //
+  // Docking Station sits in one warehouse with 2 units, so ordering more than
+  // that lands in backorder and the consolidation flow becomes reachable.
   const inventoryData = [
-    { product: 'Laptop', warehouse: 'Main Warehouse', quantity: 3 },
-    { product: 'Laptop', warehouse: 'East Depot',     quantity: 5 },
+    { product: 'Laptop',          warehouse: 'Main Warehouse', quantity: 3 },
+    { product: 'Laptop',          warehouse: 'East Depot',     quantity: 5 },
+    { product: 'Laptop',          warehouse: 'West Depot',     quantity: 20 },
+    { product: 'Docking Station', warehouse: 'Main Warehouse', quantity: 2 },
   ];
 
   for (const inv of inventoryData) {
@@ -268,6 +307,13 @@ async function seed() {
       console.log(`  ✓ ${inv.product} @ ${inv.warehouse} → ${inv.quantity} units`);
     }
   }
+
+  // ─── 8b. Fulfillment scoring weights ─────────────────────────────────────
+  // The engine seeds this row itself on first use, but seeding it here means an
+  // admin can see and edit the weights before any quotation is fulfilled.
+  console.log('\n⚖️  Seeding fulfillment scoring weights...');
+  await db.insert(schema.fulfillmentSettings).values({ id: 1 }).onConflictDoNothing();
+  console.log('  ✓ completeness 30 · shipping 25 · delivery 20 · shipments 15 · preservation 10');
 
   // ─── 9. Subscription Plans ───────────────────────────────────────────────
   console.log('\n🔄 Seeding subscription plans...');

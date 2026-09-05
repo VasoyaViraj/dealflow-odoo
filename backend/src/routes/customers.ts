@@ -35,7 +35,7 @@ router.get('/', requireAuth, async (_req, res) => {
 
 router.get('/:id', requireAuth, async (req, res) => {
   try {
-    const [row] = await db.select().from(customers).where(eq(customers.id, req.params.id));
+    const [row] = await db.select().from(customers).where(eq(customers.id, String(req.params.id)));
     if (!row) return res.status(404).json({ success: false, error: 'Customer not found' });
     res.json({ success: true, data: row });
   } catch (err) {

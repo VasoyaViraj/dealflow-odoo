@@ -11,6 +11,7 @@ import discountConfigRouter from './routes/discountConfig.js';
 import quotationsRouter from './routes/quotations.js';
 import approvalsRouter from './routes/approvals.js';
 import fulfillmentRouter from './routes/fulfillment.js';
+import billingRouter from './routes/billing.js';
 
 import { requireAuth } from './middleware/auth.js';
 
@@ -21,7 +22,7 @@ app.use(express.json());
 
 // ─── Health check ────────────────────────────────────────────────────────────
 app.get('/health', (_req, res) => {
-  res.json({ status: 'ok', version: 'phase-3+4+5' });
+  res.json({ status: 'ok', version: 'phase-7-billing' });
 });
 
 // ─── Auth routes ─────────────────────────────────────────────────────────────
@@ -49,6 +50,11 @@ app.use('/api/v1', approvalsRouter);
 // /quotations/:id/fulfillment/* and /fulfillment/*. Like the approval router,
 // authorization is per-quotation inside the router, not by role here.
 app.use('/api/v1', fulfillmentRouter);
+
+// ─── Phase 7: Billing engine routes ──────────────────────────────────────────
+// Mounted at the version root so billing paths can straddle both
+// /quotations/:id/billing/* and /invoices/* / /subscriptions/* cleanly.
+app.use('/api/v1', billingRouter);
 
 // ─── Legacy welcome endpoint ─────────────────────────────────────────────────
 app.get('/api/v1/welcome', requireAuth, (req, res) => {

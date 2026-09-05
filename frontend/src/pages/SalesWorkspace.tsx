@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import AppShell from '../components/layout/AppShell';
 import api from '../lib/api';
 import FulfillmentPanel from '../components/fulfillment/FulfillmentPanel';
+import { BillingOverview } from '../components/billing/BillingOverview';
 import {
   Plus, ArrowLeft, ShoppingCart, Package, RefreshCw,
   Trash2, AlertTriangle, CheckCircle, ChevronRight,
@@ -357,6 +358,7 @@ function QuotationBuilderView({
   const [submitted, setSubmitted] = useState(false);
   const [notes, setNotes] = useState(initialQuotation.notes ?? '');
   const [orderDiscount, setOrderDiscount] = useState(initialQuotation.quotationDiscountPercent ?? '0');
+  const [sidebarTab, setSidebarTab] = useState<'summary' | 'billing'>('summary');
   const notesTimer = useRef<ReturnType<typeof setTimeout>>();
 
   const isEditable = q.status === 'DRAFT';
@@ -727,12 +729,45 @@ function QuotationBuilderView({
         {/* Right sidebar: Totals + Upsell + Notes */}
         <div className="w-80 shrink-0 border-l border-zinc-800 overflow-auto flex flex-col">
 
+          {/* Sidebar tab switcher — only when APPROVED */}
+          {q.status === 'APPROVED' && (
+            <div className="flex border-b border-zinc-800 shrink-0">
+              {(['summary', 'billing'] as const).map(tab => (
+                <button
+                  key={tab}
+                  id={`sidebar-tab-${tab}`}
+                  onClick={() => setSidebarTab(tab)}
+                  className={`flex-1 py-2.5 text-xs font-semibold capitalize transition ${
+                    sidebarTab === tab
+                      ? 'text-white border-b-2 border-violet-500 bg-violet-500/5'
+                      : 'text-zinc-500 hover:text-zinc-300'
+                  }`}
+                >
+                  {tab === 'billing' ? '💳 Billing' : '📋 Summary'}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Billing tab body */}
+          {sidebarTab === 'billing' && q.status === 'APPROVED' ? (
+            <div className="flex-1 overflow-y-auto p-5">
+              <BillingOverview
+                quotationId={q.id}
+                userRole="SALES_REPRESENTATIVE"
+                showToast={showToast}
+              />
+            </div>
+          ) : (
+          <>
+
           {/* Order Totals */}
           <div className="p-5 border-b border-zinc-800">
             <p className="text-xs text-zinc-500 font-semibold uppercase tracking-wider mb-4">Order Summary</p>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between text-zinc-400">
                 <span>Subtotal</span>
+
                 <span>{fmt(q.subtotal)}</span>
               </div>
               <div className="flex justify-between text-zinc-400">
@@ -821,9 +856,12 @@ function QuotationBuilderView({
               className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2.5 text-xs text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-violet-500 resize-none transition disabled:opacity-50"
             />
           </div>
+          </>
+          )}
         </div>
       </div>
     </div>
+
   );
 }
 

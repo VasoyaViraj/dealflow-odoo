@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import api from '../../lib/api';
+import { getProducts } from '../../lib/referenceData';
 import {
   ArrowLeft, ShoppingCart, Package, RefreshCw,
   Trash2, AlertTriangle, CheckCircle, Send, Plus, Star, Info, FileText
@@ -36,7 +37,7 @@ export function QuotationBuilderView({
   const isEditable = q.status === 'DRAFT';
 
   useEffect(() => {
-    api.get('/products').then(r => setProducts(r.data.data));
+    getProducts().then(setProducts);
   }, []);
 
   // ─ Product Catalogue helpers

@@ -263,34 +263,35 @@ export async function listFulfillments(actor: AuthUser, filters: ListFilters) {
 
   const where = conditions.length > 0 ? and(...conditions) : undefined;
 
-  const rows = await db
-    .select({
-      id: fulfillmentOrders.id,
-      quotationId: fulfillmentOrders.quotationId,
-      quotationNumber: quotations.quotationNumber,
-      customerName: customers.name,
-      status: fulfillmentOrders.status,
-      strategy: fulfillmentOrders.strategy,
-      planScore: fulfillmentOrders.planScore,
-      totalShippingCost: fulfillmentOrders.totalShippingCost,
-      shipmentCount: fulfillmentOrders.shipmentCount,
-      maxDeliveryDays: fulfillmentOrders.maxDeliveryDays,
-      isManualOverride: fulfillmentOrders.isManualOverride,
-      createdAt: fulfillmentOrders.createdAt,
-    })
-    .from(fulfillmentOrders)
-    .innerJoin(quotations, eq(quotations.id, fulfillmentOrders.quotationId))
-    .innerJoin(customers, eq(customers.id, quotations.customerId))
-    .where(where)
-    .orderBy(desc(fulfillmentOrders.createdAt))
-    .limit(filters.limit)
-    .offset((filters.page - 1) * filters.limit);
-
-  const [{ count }] = await db
-    .select({ count: sql<number>`count(*)::int` })
-    .from(fulfillmentOrders)
-    .innerJoin(quotations, eq(quotations.id, fulfillmentOrders.quotationId))
-    .where(where);
+  const [rows, [{ count }]] = await Promise.all([
+    db
+      .select({
+        id: fulfillmentOrders.id,
+        quotationId: fulfillmentOrders.quotationId,
+        quotationNumber: quotations.quotationNumber,
+        customerName: customers.name,
+        status: fulfillmentOrders.status,
+        strategy: fulfillmentOrders.strategy,
+        planScore: fulfillmentOrders.planScore,
+        totalShippingCost: fulfillmentOrders.totalShippingCost,
+        shipmentCount: fulfillmentOrders.shipmentCount,
+        maxDeliveryDays: fulfillmentOrders.maxDeliveryDays,
+        isManualOverride: fulfillmentOrders.isManualOverride,
+        createdAt: fulfillmentOrders.createdAt,
+      })
+      .from(fulfillmentOrders)
+      .innerJoin(quotations, eq(quotations.id, fulfillmentOrders.quotationId))
+      .innerJoin(customers, eq(customers.id, quotations.customerId))
+      .where(where)
+      .orderBy(desc(fulfillmentOrders.createdAt))
+      .limit(filters.limit)
+      .offset((filters.page - 1) * filters.limit),
+    db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(fulfillmentOrders)
+      .innerJoin(quotations, eq(quotations.id, fulfillmentOrders.quotationId))
+      .where(where),
+  ]);
 
   return {
     items: rows,
@@ -673,20 +674,20 @@ async function decrementStock(tx: Tx, allocations: Allocation[]): Promise<void> 
     else perRow.set(k, { productId: a.productId, warehouseId: a.warehouseId, quantity: a.quantity });
   }
 
-  for (const row of perRow.values()) {
-    await tx
-      .update(inventory)
-      .set({
-        quantity: sql`${inventory.quantity} - ${row.quantity}`,
-        updatedAt: new Date(),
-      })
-      .where(
-        and(
-          eq(inventory.productId, row.productId),
-          eq(inventory.warehouseId, row.warehouseId),
-        ),
-      );
-  }
+  const values = [...perRow.values()].map(
+    (row) => sql`(${row.productId}::uuid, ${row.warehouseId}::uuid, ${row.quantity}::integer)`,
+  );
+
+  if (values.length === 0) return;
+
+  await tx.execute(sql`
+    UPDATE inventory AS i
+    SET quantity = i.quantity - v.quantity,
+        updated_at = now()
+    FROM (VALUES ${sql.join(values, sql`, `)}) AS v(product_id, warehouse_id, quantity)
+    WHERE i.product_id = v.product_id
+      AND i.warehouse_id = v.warehouse_id
+  `);
 }
 
 async function persistPlan(
@@ -712,21 +713,25 @@ async function persistPlan(
     })
     .returning({ id: fulfillmentOrders.id });
 
-  const shipmentIdByWarehouse = new Map<string, string>();
+  const shipmentRows = plan.shipments.map((shipment) => ({
+    fulfillmentOrderId: order.id,
+    warehouseId: shipment.warehouseId,
+    totalUnits: shipment.totalUnits,
+    shippingCost: shipment.shippingCost,
+    deliveryDays: shipment.deliveryDays,
+  }));
 
-  for (const shipment of plan.shipments) {
-    const [row] = await tx
+  const createdShipments = shipmentRows.length > 0
+    ? await tx
       .insert(fulfillmentShipments)
-      .values({
-        fulfillmentOrderId: order.id,
-        warehouseId: shipment.warehouseId,
-        totalUnits: shipment.totalUnits,
-        shippingCost: shipment.shippingCost,
-        deliveryDays: shipment.deliveryDays,
+      .values(shipmentRows)
+      .returning({
+        id: fulfillmentShipments.id,
+        warehouseId: fulfillmentShipments.warehouseId,
       })
-      .returning({ id: fulfillmentShipments.id });
-    shipmentIdByWarehouse.set(shipment.warehouseId, row.id);
-  }
+    : [];
+
+  const shipmentIdByWarehouse = new Map(createdShipments.map((row) => [row.warehouseId, row.id]));
 
   const rows = [
     ...plan.allocations.map((a) => ({

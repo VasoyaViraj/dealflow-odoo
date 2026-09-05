@@ -13,7 +13,7 @@
 
 import { Router } from 'express';
 import { z } from 'zod';
-import { eq, and, or } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { quotations, users, customers } from '../db/schema.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
@@ -29,6 +29,11 @@ const router = Router();
 // deliberately excluded — CRD.md requires approval decisions to never expose
 // internal risk engine details to customers.
 const INTERNAL_ROLES = ['SALES_REPRESENTATIVE', 'SALES_MANAGER', 'FINANCE_OPERATIONS', 'ADMIN'];
+
+const queueQuerySchema = z.object({
+  page: z.coerce.number().int().positive().default(1),
+  limit: z.coerce.number().int().positive().max(100).default(20),
+});
 
 /**
  * A Sales Rep may only view risk/approval detail for quotations they own.
@@ -206,7 +211,14 @@ router.get(
   requireRole(['SALES_MANAGER', 'FINANCE_OPERATIONS']),
   async (req, res) => {
     try {
+      const parsed = queueQuerySchema.safeParse(req.query);
+      if (!parsed.success) {
+        return res.status(400).json({ success: false, error: parsed.error.format() });
+      }
+
       const role = req.user!.role;
+      const { page, limit } = parsed.data;
+      const offset = (page - 1) * limit;
 
       // Determine which statuses this role can act on
       let statusFilter;
@@ -234,9 +246,15 @@ router.get(
         .from(quotations)
         .leftJoin(customers, eq(quotations.customerId, customers.id))
         .where(statusFilter)
-        .orderBy(quotations.updatedAt);
+        .orderBy(quotations.updatedAt)
+        .limit(limit)
+        .offset(offset);
 
-      res.json({ success: true, data: queue });
+      res.json({
+        success: true,
+        data: queue,
+        pagination: { page, limit },
+      });
     } catch (err: any) {
       console.error('Approval queue error:', err);
       res.status(500).json({ success: false, error: 'Internal server error' });

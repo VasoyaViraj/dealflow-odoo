@@ -15,17 +15,14 @@
  * threshold descending and picking the highest rule whose threshold ≤ the risk score.
  */
 
-import { eq, desc } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import {
   quotations,
   quotationLines,
   customers,
-  products,
-  discountTierConfigs,
-  categoryDiscountLimits,
-  approvalRules,
 } from '../db/schema.js';
+import { readApprovalRulesCached, readDiscountConfigCached } from './configCache.js';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -72,22 +69,19 @@ export async function calculateRisk(quotationId: string): Promise<RiskResult> {
     throw new Error(`Customer for quotation ${quotationId} not found`);
   }
 
-  // 3. Get the tier's max discount
-  const [tierConfig] = await db
-    .select({ maxDiscountPct: discountTierConfigs.maxDiscountPct })
-    .from(discountTierConfigs)
-    .where(eq(discountTierConfigs.tier, customer.tier));
+  const { tiers, categories } = await readDiscountConfigCached();
 
+  // 3. Get the tier's max discount
+  const tierConfig = tiers.find((row) => row.tier === customer.tier);
   const tierMaxDiscount = tierConfig ? parseFloat(tierConfig.maxDiscountPct) : 0;
 
   // 4. Get all category discount limits (keyed by category)
-  const categoryLimits = await db.select().from(categoryDiscountLimits);
   const categoryLimitMap: Record<string, number> = {};
-  for (const cl of categoryLimits) {
+  for (const cl of categories) {
     categoryLimitMap[cl.category] = parseFloat(cl.maxDiscountPct);
   }
 
-  // 5. Fetch all quotation lines with their product info
+  // 5. Fetch all quotation lines from the immutable catalogue snapshot.
   const lines = await db
     .select({
       lineId: quotationLines.id,
@@ -95,11 +89,10 @@ export async function calculateRisk(quotationId: string): Promise<RiskResult> {
       unitPrice: quotationLines.unitPrice,
       quantity: quotationLines.quantity,
       finalPrice: quotationLines.finalPrice,
-      productName: products.name,
-      productCategory: products.category,
+      productName: quotationLines.productName,
+      productCategory: quotationLines.category,
     })
     .from(quotationLines)
-    .leftJoin(products, eq(quotationLines.productId, products.id))
     .where(eq(quotationLines.quotationId, quotationId));
 
   if (lines.length === 0) {
@@ -125,7 +118,7 @@ export async function calculateRisk(quotationId: string): Promise<RiskResult> {
   // Second pass: compute deviations
   for (const line of lines) {
     const actualDiscount = parseFloat(line.discountPercent);
-    const categoryLimit = categoryLimitMap[line.productCategory!] ?? 100;
+    const categoryLimit = categoryLimitMap[line.productCategory] ?? 100;
 
     // Effective allowed = MIN(tier limit, category limit)
     const effectiveAllowed = Math.min(tierMaxDiscount, categoryLimit);
@@ -136,8 +129,8 @@ export async function calculateRisk(quotationId: string): Promise<RiskResult> {
     if (deviation > 0) {
       violations.push({
         lineId: line.lineId,
-        productName: line.productName ?? 'Unknown',
-        productCategory: line.productCategory ?? 'Unknown',
+        productName: line.productName,
+        productCategory: line.productCategory,
         actualDiscount,
         allowedDiscount: effectiveAllowed,
         deviation,
@@ -154,11 +147,7 @@ export async function calculateRisk(quotationId: string): Promise<RiskResult> {
   const riskScore = Math.round(weightedDeviationSum * 10 * 100) / 100;
 
   // 8. Determine approval level from approval_rules table (data-driven)
-  const rules = await db
-    .select()
-    .from(approvalRules)
-    .where(eq(approvalRules.isActive, true))
-    .orderBy(desc(approvalRules.riskScoreThreshold));
+  const rules = await readApprovalRulesCached();
 
   let requiredLevel: 'NONE' | 'SALES_MANAGER' | 'FINANCE' = 'NONE';
 

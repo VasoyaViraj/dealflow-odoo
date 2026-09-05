@@ -1,0 +1,12 @@
+# Local env — never commit
+.env
+
+# Dependencies
+node_modules
+
+# Build output
+dist
+
+# Logs
+*.log
+npm-debug.log*

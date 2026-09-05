@@ -1,24 +1,55 @@
+import { useState, useEffect, useCallback } from 'react';
 import AppShell from '../components/layout/AppShell';
-import { Globe } from 'lucide-react';
+import api from '../lib/api';
+import type { Quotation } from '../types/quotation';
+import { Toast } from '../components/ui/Toast';
+import { PortalQuotationList } from '../components/portal/PortalQuotationList';
+import { PortalQuotationDetail } from '../components/portal/PortalQuotationDetail';
 
 export default function CustomerPortal() {
+  const [view, setView] = useState<'list' | 'detail'>('list');
+  const [quotations, setQuotations] = useState<Quotation[]>([]);
+  const [selected, setSelected] = useState<Quotation | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
+
+  const showToast = useCallback((msg: string, type: 'success' | 'error' = 'success') => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 4000);
+  }, []);
+
+  const loadList = useCallback(async () => {
+    setLoading(true);
+    try {
+      // Customers can only see non-DRAFT quotations (enforced by backend)
+      const r = await api.get('/quotations', { params: { limit: 50 } });
+      setQuotations((r.data.data as Quotation[]).filter(q => q.status !== 'DRAFT'));
+    } catch { showToast('Failed to load quotations', 'error'); }
+    finally { setLoading(false); }
+  }, [showToast]);
+
+  useEffect(() => { loadList(); }, [loadList]);
+
+  const openDetail = async (q: Quotation) => {
+    try {
+      const r = await api.get(`/quotations/${q.id}`);
+      setSelected(r.data.data);
+      setView('detail');
+    } catch { showToast('Failed to load quotation details', 'error'); }
+  };
+
   return (
     <AppShell>
-      <div className="p-8">
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-white">Customer Portal</h1>
-          <p className="text-zinc-400 text-sm mt-1">View quotations, negotiate terms, and confirm orders.</p>
-        </div>
-        <div className="flex flex-col items-center justify-center py-24 text-center">
-          <div className="w-16 h-16 rounded-2xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center mb-4">
-            <Globe size={28} className="text-sky-400" />
-          </div>
-          <h2 className="text-lg font-semibold text-zinc-200">Customer Portal — Phase 7</h2>
-          <p className="text-zinc-500 text-sm mt-2 max-w-sm">
-            The restricted customer portal with quotation viewing, discount counter-offers, negotiation, and order confirmation is built in Phase 7.
-          </p>
-        </div>
-      </div>
+      {view === 'list' ? (
+        <PortalQuotationList quotations={quotations} loading={loading} onOpen={openDetail} onRefresh={loadList} />
+      ) : selected ? (
+        <PortalQuotationDetail
+          quotation={selected}
+          onBack={() => { setView('list'); setSelected(null); }}
+          showToast={showToast}
+        />
+      ) : null}
+      {toast && <Toast msg={toast.msg} type={toast.type} />}
     </AppShell>
   );
 }

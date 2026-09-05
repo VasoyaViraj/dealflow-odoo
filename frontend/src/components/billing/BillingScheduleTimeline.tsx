@@ -24,9 +24,9 @@ const STATUS_ICON: Record<BillingScheduleEntry['status'], React.ElementType> = {
 };
 
 const STATUS_STYLE: Record<BillingScheduleEntry['status'], { node: string; label: string; line: string }> = {
-  UPCOMING: { node: 'border-violet-500/40 bg-violet-500/10', label: 'text-violet-300', line: 'bg-zinc-800' },
-  INVOICED: { node: 'border-emerald-500/40 bg-emerald-500/10', label: 'text-emerald-300', line: 'bg-emerald-500/30' },
-  SKIPPED:  { node: 'border-zinc-700 bg-zinc-800', label: 'text-zinc-600', line: 'bg-zinc-800' },
+  UPCOMING: { node: 'border-ink bg-cream', label: 'text-link', line: 'bg-soft' },
+  INVOICED: { node: 'border-success bg-success/10', label: 'text-success', line: 'bg-success/10' },
+  SKIPPED:  { node: 'border-hairline bg-soft', label: 'text-line-strong', line: 'bg-soft' },
 };
 
 interface BillingScheduleTimelineProps {
@@ -42,7 +42,7 @@ export function BillingScheduleTimeline({ entries, initialCount = 6 }: BillingSc
 
   if (entries.length === 0) {
     return (
-      <div className="flex items-center justify-center py-8 text-zinc-600 text-sm">
+      <div className="flex items-center justify-center py-8 text-line-strong text-sm">
         <Calendar size={16} className="mr-2" />
         No billing schedule entries
       </div>
@@ -70,17 +70,17 @@ export function BillingScheduleTimeline({ entries, initialCount = 6 }: BillingSc
               {/* Content */}
               <div className={`pb-4 flex-1 flex items-start justify-between ${isLast ? 'pb-0' : ''}`}>
                 <div>
-                  <p className="text-sm font-medium text-zinc-200">{fmtDate(entry.dueDate)}</p>
-                  <p className="text-xs text-zinc-500">{fmtMonth(entry.dueDate)}</p>
+                  <p className="text-sm font-medium text-ink">{fmtDate(entry.dueDate)}</p>
+                  <p className="text-xs text-subtle">{fmtMonth(entry.dueDate)}</p>
                   {entry.status === 'INVOICED' && entry.invoiceId && (
-                    <p className="text-xs text-emerald-400 mt-0.5">Invoice issued</p>
+                    <p className="text-xs text-success mt-0.5">Invoice issued</p>
                   )}
                   {entry.status === 'SKIPPED' && (
-                    <p className="text-xs text-zinc-600 mt-0.5">Skipped (subscription cancelled)</p>
+                    <p className="text-xs text-line-strong mt-0.5">Skipped (subscription cancelled)</p>
                   )}
                 </div>
                 <div className="text-right">
-                  <p className={`text-sm font-bold ${entry.status === 'SKIPPED' ? 'text-zinc-600 line-through' : 'text-white'}`}>
+                  <p className={`text-sm font-bold ${entry.status === 'SKIPPED' ? 'text-line-strong line-through' : 'text-ink'}`}>
                     {fmt(entry.amount)}
                   </p>
                   <p className={`text-xs capitalize mt-0.5 ${style.label}`}>{entry.status.toLowerCase()}</p>
@@ -95,7 +95,7 @@ export function BillingScheduleTimeline({ entries, initialCount = 6 }: BillingSc
       {entries.length > initialCount && (
         <button
           onClick={() => setShowAll(s => !s)}
-          className="mt-3 text-xs text-violet-400 hover:text-violet-300 transition flex items-center gap-1.5"
+          className="mt-3 text-xs text-link hover:text-link-active transition flex items-center gap-1.5"
         >
           {showAll
             ? `↑ Show fewer`

@@ -18,11 +18,11 @@ function EmptyState({ icon: Icon, title, message }: {
 }) {
   return (
     <div className="flex flex-col items-center justify-center py-10 text-center">
-      <div className="w-12 h-12 rounded-2xl bg-zinc-800 border border-zinc-700 flex items-center justify-center mb-3">
-        <Icon size={20} className="text-zinc-500" />
+      <div className="w-12 h-12 rounded-lg bg-soft border border-hairline flex items-center justify-center mb-3">
+        <Icon size={20} className="text-subtle" />
       </div>
-      <p className="text-sm font-medium text-zinc-300">{title}</p>
-      <p className="text-xs text-zinc-600 mt-1 max-w-xs">{message}</p>
+      <p className="text-sm font-medium text-body">{title}</p>
+      <p className="text-xs text-line-strong mt-1 max-w-xs">{message}</p>
     </div>
   );
 }
@@ -35,9 +35,9 @@ function SectionHeader({ icon: Icon, title, badge, color }: {
       <div className={`w-6 h-6 rounded-lg flex items-center justify-center ${color}`}>
         <Icon size={13} className="text-current" />
       </div>
-      <h3 className="text-sm font-semibold text-zinc-200">{title}</h3>
+      <h3 className="text-sm font-semibold text-ink">{title}</h3>
       {badge && (
-        <span className="ml-auto text-xs text-zinc-500 bg-zinc-800 border border-zinc-700 rounded-full px-2 py-0.5">
+        <span className="ml-auto text-xs text-subtle bg-soft border border-hairline rounded-full px-2 py-0.5">
           {badge}
         </span>
       )}
@@ -138,7 +138,7 @@ export function BillingOverview({ quotationId, userRole, showToast }: BillingOve
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-16 text-zinc-500">
+      <div className="flex items-center justify-center py-16 text-subtle">
         <RefreshCw size={20} className="animate-spin mr-3" />
         Loading billing data…
       </div>
@@ -159,14 +159,14 @@ export function BillingOverview({ quotationId, userRole, showToast }: BillingOve
             icon={ReceiptText}
             title="One-time Invoice"
             badge={hasInvoice ? summary!.invoice!.status : undefined}
-            color="bg-sky-500/10 text-sky-400"
+            color="bg-link/10 text-link"
           />
           {canBill && !hasInvoice && (
             <button
               id="generate-invoice-btn"
               onClick={handleGenerateInvoice}
               disabled={generatingInv}
-              className="flex items-center gap-2 px-4 py-2 bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-sky-500/20"
+              className="flex items-center gap-2 px-4 py-2 bg-link hover:bg-link-active text-ink text-xs font-semibold rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
             >
               {generatingInv
                 ? <RefreshCw size={12} className="animate-spin" />
@@ -184,7 +184,7 @@ export function BillingOverview({ quotationId, userRole, showToast }: BillingOve
             paying={payingInvoice}
           />
         ) : (
-          <div className="bg-zinc-900/50 border border-dashed border-zinc-800 rounded-2xl">
+          <div className="bg-canvas border border-dashed border-hairline rounded-lg">
             <EmptyState
               icon={FileText}
               title="No invoice yet"
@@ -203,14 +203,14 @@ export function BillingOverview({ quotationId, userRole, showToast }: BillingOve
             icon={Zap}
             title="Recurring Subscriptions"
             badge={hasSubs ? `${summary!.subscriptions.length} subscription${summary!.subscriptions.length !== 1 ? 's' : ''}` : undefined}
-            color="bg-violet-500/10 text-violet-400"
+            color="bg-cream text-ink"
           />
           {canBill && !hasSubs && (
             <button
               id="generate-subscriptions-btn"
               onClick={handleGenerateSubscriptions}
               disabled={generatingSubs}
-              className="flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-violet-500/20"
+              className="flex items-center gap-2 px-4 py-2 bg-ink hover:bg-ink-active text-white text-xs font-semibold rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
             >
               {generatingSubs
                 ? <RefreshCw size={12} className="animate-spin" />
@@ -236,14 +236,14 @@ export function BillingOverview({ quotationId, userRole, showToast }: BillingOve
                   <div className="mt-3 ml-4">
                     <button
                       onClick={() => setExpandedSubId(id => id === sub.id ? null : sub.id)}
-                      className="flex items-center gap-2 text-xs text-violet-400 hover:text-violet-300 transition mb-3"
+                      className="flex items-center gap-2 text-xs text-link hover:text-link-active transition mb-3"
                     >
                       <CalendarDays size={12} />
                       {expandedSubId === sub.id ? 'Hide' : 'Show'} billing schedule
                       ({sub.scheduleEntries.filter(e => e.status === 'UPCOMING').length} upcoming)
                     </button>
                     {expandedSubId === sub.id && (
-                      <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl px-5 py-4">
+                      <div className="bg-canvas border border-hairline rounded-lg px-5 py-4">
                         <BillingScheduleTimeline entries={sub.scheduleEntries} initialCount={6} />
                       </div>
                     )}
@@ -253,7 +253,7 @@ export function BillingOverview({ quotationId, userRole, showToast }: BillingOve
             ))}
           </div>
         ) : (
-          <div className="bg-zinc-900/50 border border-dashed border-zinc-800 rounded-2xl">
+          <div className="bg-canvas border border-dashed border-hairline rounded-lg">
             <EmptyState
               icon={Zap}
               title="No subscriptions yet"
@@ -267,15 +267,15 @@ export function BillingOverview({ quotationId, userRole, showToast }: BillingOve
 
       {/* ── Active subscription summary callout ──────────────────────────── */}
       {activeSubs.length > 0 && (
-        <div className="bg-violet-500/5 border border-violet-500/20 rounded-xl px-5 py-4 flex items-start gap-3">
-          <AlertCircle size={16} className="text-violet-400 shrink-0 mt-0.5" />
-          <div className="text-xs text-violet-300">
+        <div className="bg-cream border border-hairline rounded-md px-5 py-4 flex items-start gap-3">
+          <AlertCircle size={16} className="text-link shrink-0 mt-0.5" />
+          <div className="text-xs text-link">
             <p className="font-semibold mb-0.5">
               {activeSubs.length} active subscription{activeSubs.length !== 1 ? 's' : ''} running
             </p>
-            <p className="text-violet-400/70">
+            <p className="text-link">
               Combined monthly commitment:{' '}
-              <span className="text-violet-200 font-semibold">
+              <span className="text-link font-semibold">
                 {Number(activeSubs.reduce((sum, s) => sum + Number(s.cycleAmount) * (1 + Number(s.taxRate) / 100), 0))
                   .toLocaleString('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })}
               </span>

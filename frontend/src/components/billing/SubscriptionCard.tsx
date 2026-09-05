@@ -31,10 +31,10 @@ const STATUS_CONFIG: Record<Subscription['status'], {
   icon: React.ElementType;
   cls: string;
 }> = {
-  ACTIVE:    { label: 'Active',    icon: CheckCircle,  cls: 'text-emerald-300 bg-emerald-500/10 border-emerald-500/30' },
-  PAUSED:    { label: 'Paused',    icon: Pause,        cls: 'text-amber-300   bg-amber-500/10   border-amber-500/30'   },
-  CANCELLED: { label: 'Cancelled', icon: XCircle,      cls: 'text-red-300     bg-red-500/10     border-red-500/30'    },
-  EXPIRED:   { label: 'Expired',   icon: AlertTriangle,cls: 'text-zinc-400    bg-zinc-800       border-zinc-700'      },
+  ACTIVE:    { label: 'Active',    icon: CheckCircle,  cls: 'text-success bg-success/10 border-success/30' },
+  PAUSED:    { label: 'Paused',    icon: Pause,        cls: 'text-warning bg-mustard/20 border-mustard/60'   },
+  CANCELLED: { label: 'Cancelled', icon: XCircle,      cls: 'text-coral bg-coral/8 border-coral/30'    },
+  EXPIRED:   { label: 'Expired',   icon: AlertTriangle,cls: 'text-subtle bg-soft border-hairline'      },
 };
 
 function StatusPill({ status }: { status: Subscription['status'] }) {
@@ -71,23 +71,23 @@ export function SubscriptionCard({ subscription: sub, canModify, onModify, onCan
   const cycleGrossAmount = Number(sub.cycleAmount) * (1 + Number(sub.taxRate) / 100);
 
   return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
+    <div className="bg-canvas border border-hairline rounded-lg overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-800">
+      <div className="flex items-center justify-between px-5 py-4 border-b border-hairline">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center">
-            <RefreshCw size={15} className="text-violet-400" />
+          <div className="w-9 h-9 rounded-md bg-cream border border-hairline flex items-center justify-center">
+            <RefreshCw size={15} className="text-link" />
           </div>
           <div>
-            <p className="text-xs text-zinc-500 font-mono">{sub.subscriptionNumber}</p>
-            <p className="text-sm font-semibold text-white">{sub.productName}</p>
+            <p className="text-xs text-subtle font-mono">{sub.subscriptionNumber}</p>
+            <p className="text-sm font-semibold text-ink">{sub.productName}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           <StatusPill status={sub.status} />
           <button
             onClick={() => setExpanded(e => !e)}
-            className="text-zinc-500 hover:text-zinc-200 transition-colors p-1"
+            className="text-subtle hover:text-ink transition-colors p-1"
             aria-label="Toggle subscription details"
           >
             {expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
@@ -96,26 +96,26 @@ export function SubscriptionCard({ subscription: sub, canModify, onModify, onCan
       </div>
 
       {/* Key metrics row */}
-      <div className="grid grid-cols-4 gap-0 divide-x divide-zinc-800">
+      <div className="grid grid-cols-4 gap-0 divide-x divide-hairline">
         <div className="px-5 py-4">
-          <p className="text-xs text-zinc-500">Qty</p>
-          <p className="text-base font-bold text-white mt-0.5">{sub.quantity}</p>
+          <p className="text-xs text-subtle">Qty</p>
+          <p className="text-base font-bold text-ink mt-0.5">{sub.quantity}</p>
         </div>
         <div className="px-5 py-4">
-          <p className="text-xs text-zinc-500">Cycle</p>
-          <p className="text-base font-bold text-violet-300 mt-0.5">{CYCLE_LABELS[sub.billingCycle]}</p>
+          <p className="text-xs text-subtle">Cycle</p>
+          <p className="text-base font-bold text-link mt-0.5">{CYCLE_LABELS[sub.billingCycle]}</p>
         </div>
         <div className="px-5 py-4">
-          <p className="text-xs text-zinc-500">Per Cycle (incl. GST)</p>
-          <p className="text-base font-bold text-white mt-0.5">{fmt(cycleGrossAmount)}</p>
+          <p className="text-xs text-subtle">Per Cycle (incl. GST)</p>
+          <p className="text-base font-bold text-ink mt-0.5">{fmt(cycleGrossAmount)}</p>
         </div>
         <div className="px-5 py-4">
-          <p className="text-xs text-zinc-500">Next Billing</p>
-          <p className={`text-base font-bold mt-0.5 ${days <= 7 ? 'text-amber-300' : 'text-zinc-200'}`}>
+          <p className="text-xs text-subtle">Next Billing</p>
+          <p className={`text-base font-bold mt-0.5 ${days <= 7 ? 'text-warning' : 'text-ink'}`}>
             {fmtDate(sub.nextBillingDate)}
           </p>
           {days <= 30 && (
-            <p className="text-xs text-zinc-500 mt-0.5">in {days} day{days !== 1 ? 's' : ''}</p>
+            <p className="text-xs text-subtle mt-0.5">in {days} day{days !== 1 ? 's' : ''}</p>
           )}
         </div>
       </div>
@@ -128,17 +128,17 @@ export function SubscriptionCard({ subscription: sub, canModify, onModify, onCan
         const pct   = Math.min(100, Math.max(0, ((now - start) / (end - start)) * 100));
         return (
           <div className="px-5 pb-4">
-            <div className="flex justify-between text-xs text-zinc-600 mb-1.5">
+            <div className="flex justify-between text-xs text-line-strong mb-1.5">
               <span>Period start: {fmtDate(sub.currentPeriodStart)}</span>
               <span>End: {fmtDate(sub.currentPeriodEnd)}</span>
             </div>
-            <div className="h-1.5 rounded-full bg-zinc-800 overflow-hidden">
+            <div className="h-1.5 rounded-full bg-soft overflow-hidden">
               <div
-                className="h-full rounded-full bg-gradient-to-r from-violet-500 to-violet-400 transition-all"
+                className="h-full rounded-full bg-ink transition-all"
                 style={{ width: `${pct}%` }}
               />
             </div>
-            <p className="text-xs text-zinc-600 mt-1">{pct.toFixed(0)}% through current period</p>
+            <p className="text-xs text-line-strong mt-1">{pct.toFixed(0)}% through current period</p>
           </div>
         );
       })()}
@@ -146,12 +146,12 @@ export function SubscriptionCard({ subscription: sub, canModify, onModify, onCan
       {/* Cancellation info */}
       {sub.status === 'CANCELLED' && sub.cancelReason && (
         <div className="px-5 pb-4">
-          <div className="bg-red-500/5 border border-red-500/20 rounded-xl px-4 py-3 text-xs text-red-300">
+          <div className="bg-coral/8 border border-coral/30 rounded-md px-4 py-3 text-xs text-coral">
             <span className="font-semibold">Cancelled:</span> {sub.cancelReason}
-            {sub.cancelledAt && <span className="text-red-400/60 ml-2">on {fmtDate(sub.cancelledAt)}</span>}
+            {sub.cancelledAt && <span className="text-coral ml-2">on {fmtDate(sub.cancelledAt)}</span>}
           </div>
           {sub.lastProratedAmount && parseFloat(sub.lastProratedAmount) < 0 && (
-            <p className="text-xs text-emerald-400 mt-2">
+            <p className="text-xs text-success mt-2">
               Credit note: {fmt(Math.abs(parseFloat(sub.lastProratedAmount)))}
             </p>
           )}
@@ -160,28 +160,28 @@ export function SubscriptionCard({ subscription: sub, canModify, onModify, onCan
 
       {/* Expanded detail */}
       {expanded && (
-        <div className="border-t border-zinc-800 px-5 py-4">
+        <div className="border-t border-hairline px-5 py-4">
           <div className="grid grid-cols-2 gap-4 text-xs mb-4">
             <div>
-              <p className="text-zinc-500 mb-1">Unit Price</p>
-              <p className="text-zinc-200 font-medium">{fmt(sub.unitPrice)} / unit</p>
+              <p className="text-subtle mb-1">Unit Price</p>
+              <p className="text-ink font-medium">{fmt(sub.unitPrice)} / unit</p>
             </div>
             <div>
-              <p className="text-zinc-500 mb-1">Discount</p>
-              <p className="text-zinc-200 font-medium">
+              <p className="text-subtle mb-1">Discount</p>
+              <p className="text-ink font-medium">
                 {parseFloat(sub.discountPercent) > 0
                   ? `${parseFloat(sub.discountPercent).toFixed(1)}%`
                   : 'None'}
               </p>
             </div>
             <div>
-              <p className="text-zinc-500 mb-1">Tax Rate</p>
-              <p className="text-zinc-200 font-medium">{sub.taxRate}% GST</p>
+              <p className="text-subtle mb-1">Tax Rate</p>
+              <p className="text-ink font-medium">{sub.taxRate}% GST</p>
             </div>
             {sub.lastProratedAmount && (
               <div>
-                <p className="text-zinc-500 mb-1">Last Proration</p>
-                <p className={`font-medium ${parseFloat(sub.lastProratedAmount) < 0 ? 'text-emerald-400' : 'text-amber-400'}`}>
+                <p className="text-subtle mb-1">Last Proration</p>
+                <p className={`font-medium ${parseFloat(sub.lastProratedAmount) < 0 ? 'text-success' : 'text-warning'}`}>
                   {parseFloat(sub.lastProratedAmount) < 0 ? '−' : '+'}{fmt(Math.abs(parseFloat(sub.lastProratedAmount)))}
                 </p>
               </div>
@@ -194,7 +194,7 @@ export function SubscriptionCard({ subscription: sub, canModify, onModify, onCan
               <button
                 id={`modify-sub-btn-${sub.id}`}
                 onClick={onModify}
-                className="flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white text-xs font-semibold rounded-lg transition"
+                className="flex items-center gap-2 px-4 py-2 bg-ink hover:bg-ink-active text-white text-xs font-semibold rounded-lg transition"
               >
                 <TrendingUp size={12} />
                 Modify (Prorate)
@@ -203,7 +203,7 @@ export function SubscriptionCard({ subscription: sub, canModify, onModify, onCan
                 <button
                   id={`invoice-sub-btn-${sub.id}`}
                   onClick={onGenerateInvoice}
-                  className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-lg transition"
+                  className="flex items-center gap-2 px-4 py-2 bg-success /90 text-white text-xs font-semibold rounded-lg transition"
                 >
                   <Calendar size={12} />
                   Generate Invoice
@@ -212,7 +212,7 @@ export function SubscriptionCard({ subscription: sub, canModify, onModify, onCan
               <button
                 id={`cancel-sub-btn-${sub.id}`}
                 onClick={onCancel}
-                className="flex items-center gap-2 px-4 py-2 bg-zinc-800 hover:bg-red-500/20 border border-zinc-700 hover:border-red-500/40 text-zinc-300 hover:text-red-300 text-xs font-semibold rounded-lg transition"
+                className="flex items-center gap-2 px-4 py-2 bg-soft hover:bg-coral/8 border border-hairline hover:border-coral text-body hover:text-coral text-xs font-semibold rounded-lg transition"
               >
                 <XCircle size={12} />
                 Cancel

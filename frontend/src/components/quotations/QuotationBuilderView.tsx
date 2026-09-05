@@ -150,15 +150,15 @@ export function QuotationBuilderView({
   return (
     <div className="flex flex-col h-full">
       {/* Builder header */}
-      <div className="flex items-center justify-between px-8 py-4 border-b border-zinc-800 shrink-0 bg-zinc-950">
+      <div className="flex items-center justify-between px-8 py-4 border-b border-hairline shrink-0 bg-soft">
         <div className="flex items-center gap-4">
-          <button onClick={onBack} className="flex items-center gap-2 text-sm text-zinc-400 hover:text-zinc-200 transition">
+          <button onClick={onBack} className="flex items-center gap-2 text-sm text-subtle hover:text-ink transition">
             <ArrowLeft size={16} /> Back
           </button>
-          <div className="w-px h-5 bg-zinc-800" />
+          <div className="w-px h-5 bg-soft" />
           <div>
-            <span className="text-xs text-zinc-500 font-mono">{q.quotationNumber}</span>
-            <h1 className="text-base font-bold text-white leading-none mt-0.5">{q.customer?.name}</h1>
+            <span className="text-xs text-subtle font-mono">{q.quotationNumber}</span>
+            <h1 className="text-base font-bold text-ink leading-none mt-0.5">{q.customer?.name}</h1>
           </div>
           <StatusBadge status={q.status} />
           {riskScore >= 10 && <RiskBadge score={q.blendedRiskScore} />}
@@ -168,13 +168,13 @@ export function QuotationBuilderView({
             id="submit-quotation-btn"
             onClick={submitQuotation}
             disabled={submitting || q.lines.length === 0}
-            className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white text-sm font-semibold rounded-lg shadow-lg shadow-violet-500/20 transition disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center gap-2 px-5 py-2.5 bg-ink text-white text-sm font-semibold rounded-lg shadow-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Send size={14} /> {submitting ? 'Submitting…' : 'Submit for Approval'}
           </button>
         )}
         {!isEditable && (
-          <div className="text-xs text-zinc-500 flex items-center gap-1.5">
+          <div className="text-xs text-subtle flex items-center gap-1.5">
             <Info size={13} /> Read-only — quotation submitted
           </div>
         )}
@@ -182,10 +182,10 @@ export function QuotationBuilderView({
 
       {/* Submitted banner */}
       {submitted && (
-        <div className={`mx-8 mt-4 flex items-center gap-3 px-5 py-4 rounded-xl border text-sm font-medium
-          ${q.requiresApproval
-            ? 'bg-violet-500/10 border-violet-500/30 text-violet-300'
-            : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'}`}>
+        <div className={`mx-8 mt-4 flex items-center gap-3 px-5 py-4 rounded-md border text-sm font-medium
+ ${q.requiresApproval
+ ? 'bg-cream border-hairline text-link'
+ : 'bg-success/10 border-success/30 text-success'}`}>
           <CheckCircle size={18} className="shrink-0" />
           <div>
             <p className="font-semibold">{q.requiresApproval ? 'Pending Approval' : 'Auto-Approved — no approval needed'}</p>
@@ -205,32 +205,32 @@ export function QuotationBuilderView({
 
           {/* Product Catalog */}
           {isEditable && (
-            <div className="border-b border-zinc-800 px-8 py-5 bg-zinc-950/60">
-              <p className="text-xs text-zinc-500 font-semibold uppercase tracking-wider mb-3 flex items-center gap-2">
+            <div className="border-b border-hairline px-8 py-5 bg-soft">
+              <p className="text-xs text-subtle font-semibold uppercase tracking-wider mb-3 flex items-center gap-2">
                 <Package size={12} /> Product Catalogue — Click to add
               </p>
               {/* Category tabs + search */}
               <div className="flex items-center gap-3 mb-4">
-                <div className="flex gap-1 bg-zinc-900 border border-zinc-800 rounded-lg p-1">
+                <div className="flex gap-1 bg-canvas border border-hairline rounded-lg p-1">
                   {(['ALL', 'HARDWARE', 'SERVICES', 'SUBSCRIPTION'] as const).map(c => (
                     <button
                       key={c}
                       id={`cat-tab-${c.toLowerCase()}`}
                       onClick={() => setCatFilter(c)}
-                      className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${catFilter === c ? 'bg-violet-600 text-white' : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800'}`}
+                      className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${catFilter === c ? 'bg-ink text-white' : 'text-subtle hover:text-ink hover:bg-soft'}`}
                     >
                       {c}
                     </button>
                   ))}
                 </div>
                 <div className="relative flex-1 max-w-xs">
-                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
+                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-subtle" />
                   <input
                     type="text"
                     placeholder="Search products…"
                     value={search}
                     onChange={e => setSearch(e.target.value)}
-                    className="w-full bg-zinc-900 border border-zinc-800 rounded-lg pl-8 pr-3 py-1.5 text-xs text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-violet-500 transition"
+                    className="w-full bg-canvas border border-hairline rounded-lg pl-8 pr-3 py-1.5 text-xs text-ink placeholder-line-strong focus:outline-none focus:border-ink transition"
                   />
                 </div>
               </div>
@@ -247,29 +247,29 @@ export function QuotationBuilderView({
                       onClick={() => !inCart && addProduct(p.id)}
                       disabled={inCart || !!adding}
                       className={`flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg border text-left transition-all text-sm ${
-                        inCart
-                          ? 'bg-zinc-800/50 border-zinc-700/50 cursor-default opacity-50'
-                          : 'bg-zinc-800 border-zinc-700 hover:border-violet-500/50 hover:bg-violet-500/10 cursor-pointer'
-                      }`}
+ inCart
+ ? 'bg-soft border-hairline cursor-default opacity-50'
+ : 'bg-soft border-hairline hover:border-ink hover:bg-cream cursor-pointer'
+ }`}
                     >
                       <div className="min-w-0">
-                        <p className="font-medium text-zinc-100 truncate text-xs">{p.name}</p>
-                        <p className="text-zinc-500 text-xs">{fmt(p.unitPrice)}</p>
+                        <p className="font-medium text-ink truncate text-xs">{p.name}</p>
+                        <p className="text-subtle text-xs">{fmt(p.unitPrice)}</p>
                       </div>
                       <div className="flex items-center gap-1.5 shrink-0">
                         <CategoryBadge cat={p.category} />
                         {inCart
-                          ? <CheckCircle size={13} className="text-emerald-400" />
+                          ? <CheckCircle size={13} className="text-success" />
                           : isAdding
-                          ? <RefreshCw size={12} className="animate-spin text-violet-400" />
-                          : <Plus size={13} className="text-zinc-500" />
+                          ? <RefreshCw size={12} className="animate-spin text-link" />
+                          : <Plus size={13} className="text-subtle" />
                         }
                       </div>
                     </button>
                   );
                 })}
                 {filteredProducts.length === 0 && (
-                  <p className="col-span-3 text-xs text-zinc-500 text-center py-4">No products match your filter.</p>
+                  <p className="col-span-3 text-xs text-subtle text-center py-4">No products match your filter.</p>
                 )}
               </div>
             </div>
@@ -277,20 +277,20 @@ export function QuotationBuilderView({
 
           {/* Quote Lines */}
           <div className="flex-1 overflow-auto px-8 py-5">
-            <p className="text-xs text-zinc-500 font-semibold uppercase tracking-wider mb-4 flex items-center gap-2">
+            <p className="text-xs text-subtle font-semibold uppercase tracking-wider mb-4 flex items-center gap-2">
               <ShoppingCart size={12} /> Quote Lines ({q.lines.length})
             </p>
 
             {q.lines.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-20 text-center border-2 border-dashed border-zinc-800 rounded-xl">
-                <ShoppingCart size={28} className="text-zinc-700 mb-3" />
-                <p className="text-zinc-500 text-sm">No products added yet.</p>
-                {isEditable && <p className="text-zinc-600 text-xs mt-1">Use the catalogue above to add products.</p>}
+              <div className="flex flex-col items-center justify-center py-20 text-center border-2 border-dashed border-hairline rounded-md">
+                <ShoppingCart size={28} className="text-subtle mb-3" />
+                <p className="text-subtle text-sm">No products added yet.</p>
+                {isEditable && <p className="text-line-strong text-xs mt-1">Use the catalogue above to add products.</p>}
               </div>
             ) : (
               <div className="space-y-2">
                 {/* Table header */}
-                <div className="grid grid-cols-[2fr_1fr_1.2fr_1.2fr_1fr_auto] gap-3 px-4 py-2 text-xs text-zinc-500 font-medium">
+                <div className="grid grid-cols-[2fr_1fr_1.2fr_1.2fr_1fr_auto] gap-3 px-4 py-2 text-xs text-subtle font-medium">
                   <span>Product</span>
                   <span>Qty</span>
                   <span>Discount %</span>
@@ -302,22 +302,22 @@ export function QuotationBuilderView({
                 {q.lines.map(line => {
                   const isUpdating = lineUpdating === line.id;
                   const marginPctLine = parseFloat(line.marginPercent) || 0;
-                  const marginColor = marginPctLine >= 30 ? 'text-emerald-400' : marginPctLine >= 15 ? 'text-amber-400' : 'text-red-400';
+                  const marginColor = marginPctLine >= 30 ? 'text-success' : marginPctLine >= 15 ? 'text-warning' : 'text-coral';
 
                   return (
                     <div
                       key={line.id}
-                      className={`grid grid-cols-[2fr_1fr_1.2fr_1.2fr_1fr_auto] gap-3 items-center px-4 py-3 bg-zinc-900 border rounded-xl transition-all ${
-                        line.isOverDiscountLimit ? 'border-amber-500/30 bg-amber-500/5' : 'border-zinc-800'
-                      } ${isUpdating ? 'opacity-60' : ''}`}
+                      className={`grid grid-cols-[2fr_1fr_1.2fr_1.2fr_1fr_auto] gap-3 items-center px-4 py-3 bg-canvas border rounded-md transition-all ${
+ line.isOverDiscountLimit ? 'border-mustard/60 bg-mustard/20' : 'border-hairline'
+ } ${isUpdating ? 'opacity-60' : ''}`}
                     >
                       {/* Product info */}
                       <div>
-                        <p className="text-sm font-medium text-zinc-100 truncate">{line.productName}</p>
+                        <p className="text-sm font-medium text-ink truncate">{line.productName}</p>
                         <div className="flex items-center gap-1.5 mt-0.5">
                           <CategoryBadge cat={line.category} />
                           {line.isOverDiscountLimit && (
-                            <span className="text-xs text-amber-400 flex items-center gap-0.5">
+                            <span className="text-xs text-warning flex items-center gap-0.5">
                               <AlertTriangle size={10} /> Over limit
                             </span>
                           )}
@@ -329,17 +329,17 @@ export function QuotationBuilderView({
                         {isEditable ? (
                           <>
                             <button onClick={() => updateLineQty(line.id, -1, line.quantity)} disabled={isUpdating || line.quantity <= 1}
-                              className="w-6 h-6 rounded-md bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center text-zinc-400 disabled:opacity-40 transition">
+                              className="w-6 h-6 rounded-md bg-soft hover:bg-strong flex items-center justify-center text-subtle disabled:opacity-40 transition">
                               <div className="text-lg">-</div>
                             </button>
-                            <span className="w-7 text-center text-sm font-semibold text-zinc-100">{line.quantity}</span>
+                            <span className="w-7 text-center text-sm font-semibold text-ink">{line.quantity}</span>
                             <button onClick={() => updateLineQty(line.id, 1, line.quantity)} disabled={isUpdating}
-                              className="w-6 h-6 rounded-md bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center text-zinc-400 disabled:opacity-40 transition">
+                              className="w-6 h-6 rounded-md bg-soft hover:bg-strong flex items-center justify-center text-subtle disabled:opacity-40 transition">
                               <Plus size={11} />
                             </button>
                           </>
                         ) : (
-                          <span className="text-sm text-zinc-200">{line.quantity}</span>
+                          <span className="text-sm text-ink">{line.quantity}</span>
                         )}
                       </div>
 
@@ -353,20 +353,20 @@ export function QuotationBuilderView({
                               defaultValue={parseFloat(line.discountPercent).toFixed(1)}
                               onBlur={e => updateLineDiscount(line.id, parseFloat(e.target.value) || 0)}
                               disabled={isUpdating}
-                              className="w-16 bg-zinc-800 border border-zinc-700 rounded-md px-2 py-1 text-xs text-zinc-100 focus:outline-none focus:border-violet-500 text-center"
+                              className="w-16 bg-soft border border-hairline rounded-md px-2 py-1 text-xs text-ink focus:outline-none focus:border-ink text-center"
                             />
-                            <span className="text-xs text-zinc-500">%</span>
+                            <span className="text-xs text-subtle">%</span>
                           </div>
                         ) : (
-                          <span className="text-sm text-zinc-200">{parseFloat(line.discountPercent).toFixed(1)}%</span>
+                          <span className="text-sm text-ink">{parseFloat(line.discountPercent).toFixed(1)}%</span>
                         )}
                         {parseFloat(line.maxDiscountPercent) > 0 && (
-                          <p className="text-xs text-zinc-600 mt-0.5">Max: {parseFloat(line.maxDiscountPercent).toFixed(0)}%</p>
+                          <p className="text-xs text-line-strong mt-0.5">Max: {parseFloat(line.maxDiscountPercent).toFixed(0)}%</p>
                         )}
                       </div>
 
                       {/* Line total */}
-                      <p className="text-sm font-semibold text-zinc-100">{fmt(line.lineTotal)}</p>
+                      <p className="text-sm font-semibold text-ink">{fmt(line.lineTotal)}</p>
 
                       {/* Margin */}
                       <p className={`text-sm font-semibold ${marginColor}`}>{marginPctLine.toFixed(1)}%</p>
@@ -377,7 +377,7 @@ export function QuotationBuilderView({
                           id={`remove-line-${line.id}`}
                           onClick={() => removeLine(line.id)}
                           disabled={isUpdating}
-                          className="w-7 h-7 rounded-lg flex items-center justify-center text-zinc-600 hover:text-red-400 hover:bg-red-500/10 transition disabled:opacity-40"
+                          className="w-7 h-7 rounded-lg flex items-center justify-center text-line-strong hover:text-coral hover:bg-coral/8 transition disabled:opacity-40"
                         >
                           <Trash2 size={13} />
                         </button>
@@ -391,25 +391,25 @@ export function QuotationBuilderView({
         </div>
 
         {/* Right sidebar: Totals + Upsell + Notes */}
-        <div className="w-80 shrink-0 border-l border-zinc-800 overflow-auto flex flex-col">
+        <div className="w-80 shrink-0 border-l border-hairline overflow-auto flex flex-col">
 
           {/* Order Totals */}
-          <div className="p-5 border-b border-zinc-800">
-            <p className="text-xs text-zinc-500 font-semibold uppercase tracking-wider mb-4">Order Summary</p>
+          <div className="p-5 border-b border-hairline">
+            <p className="text-xs text-subtle font-semibold uppercase tracking-wider mb-4">Order Summary</p>
             <div className="space-y-2 text-sm">
-              <div className="flex justify-between text-zinc-400">
+              <div className="flex justify-between text-subtle">
                 <span>Subtotal</span>
                 <span>{fmt(q.subtotal)}</span>
               </div>
-              <div className="flex justify-between text-zinc-400">
+              <div className="flex justify-between text-subtle">
                 <span>Discounts</span>
-                <span className="text-red-400">-{fmt(q.discountAmount)}</span>
+                <span className="text-coral">-{fmt(q.discountAmount)}</span>
               </div>
-              <div className="flex justify-between text-zinc-400">
+              <div className="flex justify-between text-subtle">
                 <span>Tax</span>
                 <span>{fmt(q.taxAmount)}</span>
               </div>
-              <div className="flex justify-between font-bold text-white text-base pt-2 border-t border-zinc-800">
+              <div className="flex justify-between font-bold text-ink text-base pt-2 border-t border-hairline">
                 <span>Grand Total</span>
                 <span>{fmt(q.grandTotal)}</span>
               </div>
@@ -421,8 +421,8 @@ export function QuotationBuilderView({
 
             {riskScore >= 10 && (
               <div className={`mt-3 flex items-start gap-2 text-xs px-3 py-2.5 rounded-lg border ${
-                riskScore >= 50 ? 'bg-red-500/10 border-red-500/30 text-red-300' : 'bg-amber-500/10 border-amber-500/30 text-amber-300'
-              }`}>
+ riskScore >= 50 ? 'bg-coral/8 border-coral/30 text-coral' : 'bg-mustard/20 border-mustard/60 text-warning'
+ }`}>
                 <AlertTriangle size={12} className="mt-0.5 shrink-0" />
                 <span>Risk score {riskScore.toFixed(1)} — will require{riskScore >= 50 ? ' Finance + ' : ' '}Manager approval</span>
               </div>
@@ -431,13 +431,13 @@ export function QuotationBuilderView({
             {/* Order discount */}
             {isEditable && (
               <div className="mt-4">
-                <label className="block text-xs text-zinc-500 mb-1.5 font-medium">Order-level Discount %</label>
+                <label className="block text-xs text-subtle mb-1.5 font-medium">Order-level Discount %</label>
                 <input
                   type="number" min={0} max={100} step={0.5}
                   value={orderDiscount}
                   onChange={e => setOrderDiscount(e.target.value)}
                   onBlur={handleDiscountBlur}
-                  className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-violet-500 transition"
+                  className="w-full bg-soft border border-hairline rounded-lg px-3 py-2 text-sm text-ink focus:outline-none focus:border-ink transition"
                 />
               </div>
             )}
@@ -445,25 +445,25 @@ export function QuotationBuilderView({
 
           {/* Upsell suggestions */}
           {isEditable && upsellSuggestions.length > 0 && (
-            <div className="p-5 border-b border-zinc-800">
-              <p className="text-xs text-zinc-500 font-semibold uppercase tracking-wider mb-3 flex items-center gap-1.5">
-                <Star size={11} className="text-amber-400" /> Suggested Add-ons
+            <div className="p-5 border-b border-hairline">
+              <p className="text-xs text-subtle font-semibold uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                <Star size={11} className="text-warning" /> Suggested Add-ons
               </p>
               <div className="space-y-2">
                 {upsellSuggestions.map(p => (
-                  <div key={p.id} className="flex items-center justify-between gap-2 bg-zinc-800/60 border border-zinc-700/50 rounded-lg px-3 py-2.5">
+                  <div key={p.id} className="flex items-center justify-between gap-2 bg-soft border border-hairline rounded-lg px-3 py-2.5">
                     <div className="min-w-0">
-                      <p className="text-xs font-medium text-zinc-200 truncate">{p.name}</p>
+                      <p className="text-xs font-medium text-ink truncate">{p.name}</p>
                       <div className="flex items-center gap-1.5 mt-0.5">
                         <CategoryBadge cat={p.category} />
-                        <span className="text-xs text-zinc-500">{fmt(p.unitPrice)}</span>
+                        <span className="text-xs text-subtle">{fmt(p.unitPrice)}</span>
                       </div>
                     </div>
                     <button
                       id={`upsell-add-${p.id}`}
                       onClick={() => addProduct(p.id)}
                       disabled={!!adding}
-                      className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-violet-600 hover:bg-violet-500 text-white transition disabled:opacity-50 shrink-0"
+                      className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-ink hover:bg-ink-active text-white transition disabled:opacity-50 shrink-0"
                     >
                       <Plus size={11} /> Add
                     </button>
@@ -475,7 +475,7 @@ export function QuotationBuilderView({
 
           {/* Notes */}
           <div className="p-5">
-            <label className="block text-xs text-zinc-500 font-semibold uppercase tracking-wider mb-2 flex items-center gap-1.5">
+            <label className="block text-xs text-subtle font-semibold uppercase tracking-wider mb-2 flex items-center gap-1.5">
               <FileText size={11} /> Internal Notes
             </label>
             <textarea
@@ -484,7 +484,7 @@ export function QuotationBuilderView({
               disabled={!isEditable}
               rows={5}
               placeholder="Deal context, special instructions…"
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2.5 text-xs text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-violet-500 resize-none transition disabled:opacity-50"
+              className="w-full bg-soft border border-hairline rounded-lg px-3 py-2.5 text-xs text-ink placeholder-line-strong focus:outline-none focus:border-ink resize-none transition disabled:opacity-50"
             />
           </div>
         </div>

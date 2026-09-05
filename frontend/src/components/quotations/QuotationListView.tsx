@@ -37,17 +37,17 @@ export function QuotationListView({
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-white">Sales Workspace</h1>
-          <p className="text-zinc-400 text-sm mt-1">Create and manage your quotations.</p>
+          <h1 className="text-2xl font-bold text-ink">Sales Workspace</h1>
+          <p className="text-subtle text-sm mt-1">Create and manage your quotations.</p>
         </div>
         <div className="flex items-center gap-3">
-          <button onClick={onRefresh} className="flex items-center gap-2 px-4 py-2 bg-zinc-800 border border-zinc-700 text-zinc-300 hover:text-white rounded-lg text-sm transition">
+          <button onClick={onRefresh} className="flex items-center gap-2 px-4 py-2 bg-soft border border-hairline text-body hover:text-ink rounded-lg text-sm transition">
             <RefreshCw size={14} /> Refresh
           </button>
           <button
             id="new-quotation-btn"
             onClick={onNew}
-            className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white text-sm font-semibold rounded-lg shadow-lg shadow-violet-500/20 transition"
+            className="flex items-center gap-2 px-4 py-2.5 bg-ink text-white text-sm font-semibold rounded-lg shadow-lg transition"
           >
             <Plus size={15} /> New Quotation
           </button>
@@ -57,14 +57,14 @@ export function QuotationListView({
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4 mb-8">
         {[
-          { label: 'Total Quotations', value: quotations.length, icon: <FileText size={18} />, color: 'text-zinc-300' },
-          { label: 'Pending Approval', value: pending, icon: <Clock size={18} />, color: 'text-amber-400' },
-          { label: 'Approved', value: approved, icon: <CheckCircle size={18} />, color: 'text-emerald-400' },
+          { label: 'Total Quotations', value: quotations.length, icon: <FileText size={18} />, color: 'text-body' },
+          { label: 'Pending Approval', value: pending, icon: <Clock size={18} />, color: 'text-warning' },
+          { label: 'Approved', value: approved, icon: <CheckCircle size={18} />, color: 'text-success' },
         ].map(s => (
-          <div key={s.label} className="bg-zinc-900 border border-zinc-800 rounded-xl px-5 py-4 flex items-center gap-4">
+          <div key={s.label} className="bg-canvas border border-hairline rounded-md px-5 py-4 flex items-center gap-4">
             <div className={`${s.color} opacity-60`}>{s.icon}</div>
             <div>
-              <p className="text-xs text-zinc-500 font-medium">{s.label}</p>
+              <p className="text-xs text-subtle font-medium">{s.label}</p>
               <p className={`text-2xl font-bold ${s.color} mt-0.5`}>{s.value}</p>
             </div>
           </div>
@@ -73,17 +73,17 @@ export function QuotationListView({
 
       {/* Quotation Cards */}
       {loading ? (
-        <div className="flex items-center justify-center py-32 text-zinc-500">
+        <div className="flex items-center justify-center py-32 text-subtle">
           <RefreshCw size={20} className="animate-spin mr-3" /> Loading quotations…
         </div>
       ) : quotations.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-32 text-center">
-          <div className="w-16 h-16 rounded-2xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center mb-4">
-            <ShoppingCart size={28} className="text-violet-400" />
+          <div className="w-16 h-16 rounded-lg bg-cream border border-hairline flex items-center justify-center mb-4">
+            <ShoppingCart size={28} className="text-link" />
           </div>
-          <h2 className="text-lg font-semibold text-zinc-200">No quotations yet</h2>
-          <p className="text-zinc-500 text-sm mt-2 max-w-sm">Create your first quotation to start building deals.</p>
-          <button onClick={onNew} className="mt-6 flex items-center gap-2 px-5 py-2.5 bg-violet-600 hover:bg-violet-500 text-white text-sm font-semibold rounded-lg transition">
+          <h2 className="text-lg font-semibold text-ink">No quotations yet</h2>
+          <p className="text-subtle text-sm mt-2 max-w-sm">Create your first quotation to start building deals.</p>
+          <button onClick={onNew} className="mt-6 flex items-center gap-2 px-5 py-2.5 bg-ink hover:bg-ink-active text-white text-sm font-semibold rounded-lg transition">
             <Plus size={15} /> New Quotation
           </button>
         </div>
@@ -94,15 +94,15 @@ export function QuotationListView({
               key={q.id}
               id={`quotation-card-${q.id}`}
               onClick={() => onOpen(q)}
-              className="bg-zinc-900 border border-zinc-800 hover:border-violet-500/40 hover:bg-violet-500/5 rounded-2xl p-5 flex flex-col gap-3 cursor-pointer transition-all duration-200 group"
+              className="bg-canvas border border-hairline hover:border-line-strong hover:bg-soft rounded-lg p-5 flex flex-col gap-3 cursor-pointer transition-all duration-200 group"
             >
               <div className="flex items-start justify-between">
                 <div>
-                  <p className="text-xs text-zinc-500 font-mono">{q.quotationNumber}</p>
-                  <p className="font-semibold text-white text-base mt-0.5">{q.customer?.name ?? '—'}</p>
-                  <p className="text-xs text-zinc-500 mt-0.5">{q.customer && <TierBadge tier={q.customer.tier} />}</p>
+                  <p className="text-xs text-subtle font-mono">{q.quotationNumber}</p>
+                  <p className="font-semibold text-ink text-base mt-0.5">{q.customer?.name ?? '—'}</p>
+                  <p className="text-xs text-subtle mt-0.5">{q.customer && <TierBadge tier={q.customer.tier} />}</p>
                 </div>
-                <ChevronRight size={18} className="text-zinc-600 group-hover:text-zinc-300 transition mt-1" />
+                <ChevronRight size={18} className="text-line-strong group-hover:text-body transition mt-1" />
               </div>
 
               <div className="flex items-center gap-2 flex-wrap">
@@ -111,19 +111,19 @@ export function QuotationListView({
               </div>
 
               <div className="grid grid-cols-2 gap-3">
-                <div className="bg-zinc-800/60 rounded-xl px-3 py-2.5">
-                  <p className="text-xs text-zinc-500 mb-0.5">Grand Total</p>
-                  <p className="text-sm font-bold text-white">{fmt(q.grandTotal)}</p>
+                <div className="bg-soft rounded-md px-3 py-2.5">
+                  <p className="text-xs text-subtle mb-0.5">Grand Total</p>
+                  <p className="text-sm font-bold text-ink">{fmt(q.grandTotal)}</p>
                 </div>
-                <div className="bg-zinc-800/60 rounded-xl px-3 py-2.5">
-                  <p className="text-xs text-zinc-500 mb-0.5">Lines</p>
-                  <p className="text-sm font-bold text-zinc-200">{q.lines?.length ?? '—'}</p>
+                <div className="bg-soft rounded-md px-3 py-2.5">
+                  <p className="text-xs text-subtle mb-0.5">Lines</p>
+                  <p className="text-sm font-bold text-ink">{q.lines?.length ?? '—'}</p>
                 </div>
               </div>
 
-              <div className="flex items-center justify-between pt-1 border-t border-zinc-800 text-xs text-zinc-500">
+              <div className="flex items-center justify-between pt-1 border-t border-hairline text-xs text-subtle">
                 <span className="flex items-center gap-1"><Clock size={11} /> {timeAgo(q.updatedAt)}</span>
-                <span className="text-violet-400 font-medium group-hover:text-violet-300 transition">Open →</span>
+                <span className="text-link font-medium group-hover:text-link-active transition">Open →</span>
               </div>
             </div>
           ))}

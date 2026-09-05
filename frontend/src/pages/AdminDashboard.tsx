@@ -30,12 +30,12 @@ interface SubPlan { id: string; name: string; billingCycle: string; priceMultipl
 
 function TierBadge({ tier }: { tier: string }) {
   const colors: Record<string, string> = {
-    GOLD: 'bg-amber-400/15 text-amber-300 border-amber-400/30',
-    SILVER: 'bg-zinc-400/15 text-zinc-300 border-zinc-400/30',
-    BRONZE: 'bg-orange-700/20 text-orange-400 border-orange-600/30',
+    GOLD: 'bg-mustard/20 text-warning border-mustard/60',
+    SILVER: 'bg-strong text-body border-hairline',
+    BRONZE: 'bg-coral/8 text-coral border-coral/30',
   };
   return (
-    <span className={`inline-block text-xs font-semibold px-2.5 py-0.5 rounded-full border ${colors[tier] ?? 'bg-zinc-700 text-zinc-300'}`}>
+    <span className={`inline-block text-xs font-semibold px-2.5 py-0.5 rounded-full border ${colors[tier] ?? 'bg-strong text-body'}`}>
       {tier}
     </span>
   );
@@ -43,12 +43,12 @@ function TierBadge({ tier }: { tier: string }) {
 
 function CategoryBadge({ cat }: { cat: string }) {
   const colors: Record<string, string> = {
-    HARDWARE: 'bg-blue-500/15 text-blue-300 border-blue-500/30',
-    SERVICES: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
-    SUBSCRIPTION: 'bg-violet-500/15 text-violet-300 border-violet-500/30',
+    HARDWARE: 'bg-link/10 text-link border-link/30',
+    SERVICES: 'bg-success/10 text-success border-success/30',
+    SUBSCRIPTION: 'bg-cream text-ink border-hairline',
   };
   return (
-    <span className={`inline-block text-xs font-semibold px-2.5 py-0.5 rounded-full border ${colors[cat] ?? 'bg-zinc-700 text-zinc-300'}`}>
+    <span className={`inline-block text-xs font-semibold px-2.5 py-0.5 rounded-full border ${colors[cat] ?? 'bg-strong text-body'}`}>
       {cat}
     </span>
   );
@@ -57,11 +57,11 @@ function CategoryBadge({ cat }: { cat: string }) {
 function SectionHeader({ title, onAdd, addLabel }: { title: string; onAdd?: () => void; addLabel?: string }) {
   return (
     <div className="flex items-center justify-between mb-5">
-      <h2 className="text-lg font-semibold text-white">{title}</h2>
+      <h2 className="text-lg font-semibold text-ink">{title}</h2>
       {onAdd && (
         <button
           onClick={onAdd}
-          className="flex items-center gap-1.5 bg-violet-600 hover:bg-violet-500 text-white text-sm font-medium px-3.5 py-2 rounded-lg transition-all"
+          className="flex items-center gap-1.5 bg-ink hover:bg-ink-active text-white text-sm font-medium px-3.5 py-2 rounded-lg transition-all"
         >
           <Plus size={15} /> {addLabel ?? 'Add'}
         </button>
@@ -97,7 +97,7 @@ function InlineEdit({
     <span className="flex items-center gap-2 group">
       <span>{value}</span>
       <button onClick={() => { setDraft(value); setEditing(true); }}
-        className="opacity-0 group-hover:opacity-100 transition text-zinc-500 hover:text-violet-400">
+        className="opacity-0 group-hover:opacity-100 transition text-subtle hover:text-link">
         <Pencil size={13} />
       </button>
     </span>
@@ -112,14 +112,14 @@ function InlineEdit({
         max={max}
         step="0.01"
         onChange={e => setDraft(e.target.value)}
-        className="bg-zinc-700 border border-violet-500/50 rounded px-2 py-0.5 text-sm text-zinc-100 w-24 focus:outline-none"
+        className="bg-strong border border-ink rounded px-2 py-0.5 text-sm text-ink w-24 focus:outline-none"
         autoFocus
         onKeyDown={e => { if (e.key === 'Enter') save(); if (e.key === 'Escape') setEditing(false); }}
       />
-      <button onClick={save} disabled={saving} className="text-emerald-400 hover:text-emerald-300">
+      <button onClick={save} disabled={saving} className="text-success ">
         <Check size={14} />
       </button>
-      <button onClick={() => setEditing(false)} className="text-zinc-500 hover:text-red-400">
+      <button onClick={() => setEditing(false)} className="text-subtle hover:text-coral">
         <X size={14} />
       </button>
     </span>
@@ -128,8 +128,8 @@ function InlineEdit({
 
 function Toast({ msg, type }: { msg: string; type: 'success' | 'error' }) {
   return (
-    <div className={`fixed bottom-6 right-6 z-50 flex items-center gap-2 px-5 py-3 rounded-xl shadow-2xl text-sm font-medium border
-      ${type === 'success' ? 'bg-emerald-900/80 text-emerald-300 border-emerald-500/30' : 'bg-red-900/80 text-red-300 border-red-500/30'}`}>
+    <div className={`fixed bottom-6 right-6 z-50 flex items-center gap-2 px-5 py-3 rounded-md shadow-lg text-sm font-medium border
+ ${type === 'success' ? 'bg-soft text-success border-success/30' : 'bg-soft text-coral border-coral/30'}`}>
       {type === 'success' ? <Check size={15} /> : <AlertCircle size={15} />}
       {msg}
     </div>
@@ -164,22 +164,22 @@ export default function AdminDashboard() {
       <div className="p-8">
         {/* Page header */}
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-white">Admin Configuration</h1>
-          <p className="text-zinc-400 text-sm mt-1">Manage master data — all business rules are driven by these settings.</p>
+          <h1 className="text-2xl font-bold text-ink">Admin Configuration</h1>
+          <p className="text-subtle text-sm mt-1">Manage master data — all business rules are driven by these settings.</p>
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 bg-zinc-900 border border-zinc-800 rounded-xl p-1 mb-8 w-fit">
+        <div className="flex gap-1 bg-canvas border border-hairline rounded-md p-1 mb-8 w-fit">
           {TABS.map(tab => (
             <button
               key={tab.id}
               id={`tab-${tab.id}`}
               onClick={() => setActiveTab(tab.id)}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                activeTab === tab.id
-                  ? 'bg-violet-600 text-white shadow-lg'
-                  : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800'
-              }`}
+ activeTab === tab.id
+ ? 'bg-ink text-white shadow-lg'
+ : 'text-subtle hover:text-ink hover:bg-soft'
+ }`}
             >
               {tab.icon}
               {tab.label}
@@ -188,7 +188,7 @@ export default function AdminDashboard() {
         </div>
 
         {/* Tab Panels */}
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
+        <div className="bg-canvas border border-hairline rounded-lg p-6">
           {activeTab === 'customers'  && <CustomersTab showToast={showToast} />}
           {activeTab === 'products'   && <ProductsTab showToast={showToast} />}
           {activeTab === 'discounts'  && <DiscountsTab showToast={showToast} />}
@@ -243,30 +243,30 @@ function CustomersTab({ showToast }: { showToast: (m: string, t?: 'success' | 'e
       <SectionHeader title="Customers" onAdd={() => setShowForm(v => !v)} addLabel="New Customer" />
 
       {showForm && (
-        <div className="bg-zinc-800 border border-zinc-700 rounded-xl p-5 mb-5 grid grid-cols-4 gap-3">
+        <div className="bg-soft border border-hairline rounded-md p-5 mb-5 grid grid-cols-4 gap-3">
           <input placeholder="Company name" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-            className="bg-zinc-700 border border-zinc-600 rounded-lg px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-violet-500" />
+            className="bg-strong border border-hairline rounded-lg px-3 py-2 text-sm text-ink focus:outline-none focus:border-ink" />
           <input placeholder="Email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
-            className="bg-zinc-700 border border-zinc-600 rounded-lg px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-violet-500" />
+            className="bg-strong border border-hairline rounded-lg px-3 py-2 text-sm text-ink focus:outline-none focus:border-ink" />
           <input placeholder="Phone (optional)" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
-            className="bg-zinc-700 border border-zinc-600 rounded-lg px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-violet-500" />
+            className="bg-strong border border-hairline rounded-lg px-3 py-2 text-sm text-ink focus:outline-none focus:border-ink" />
           <select value={form.tier} onChange={e => setForm(f => ({ ...f, tier: e.target.value }))}
-            className="bg-zinc-700 border border-zinc-600 rounded-lg px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-violet-500">
+            className="bg-strong border border-hairline rounded-lg px-3 py-2 text-sm text-ink focus:outline-none focus:border-ink">
             <option>BRONZE</option><option>SILVER</option><option>GOLD</option>
           </select>
           <div className="col-span-4 flex gap-2 justify-end">
-            <button onClick={() => setShowForm(false)} className="px-4 py-2 text-sm text-zinc-400 hover:text-zinc-200">Cancel</button>
-            <button onClick={create} className="px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white text-sm rounded-lg font-medium">Save</button>
+            <button onClick={() => setShowForm(false)} className="px-4 py-2 text-sm text-subtle hover:text-ink">Cancel</button>
+            <button onClick={create} className="px-4 py-2 bg-ink hover:bg-ink-active text-white text-sm rounded-lg font-medium">Save</button>
           </div>
         </div>
       )}
 
       {loading ? (
-        <div className="text-center py-10 text-zinc-500">Loading…</div>
+        <div className="text-center py-10 text-subtle">Loading…</div>
       ) : (
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-zinc-800 text-zinc-500 text-left">
+            <tr className="border-b border-hairline text-subtle text-left">
               <th className="pb-3 pr-4 font-medium">Company</th>
               <th className="pb-3 pr-4 font-medium">Email</th>
               <th className="pb-3 pr-4 font-medium">Tier</th>
@@ -275,15 +275,15 @@ function CustomersTab({ showToast }: { showToast: (m: string, t?: 'success' | 'e
           </thead>
           <tbody>
             {rows.map(r => (
-              <tr key={r.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/30 transition">
-                <td className="py-3 pr-4 font-medium text-zinc-100">{r.name}</td>
-                <td className="py-3 pr-4 text-zinc-400">{r.email}</td>
+              <tr key={r.id} className="border-b border-hairline hover:bg-soft transition">
+                <td className="py-3 pr-4 font-medium text-ink">{r.name}</td>
+                <td className="py-3 pr-4 text-subtle">{r.email}</td>
                 <td className="py-3 pr-4">
                   <select
                     value={r.tier}
                     onChange={e => updateTier(r.id, e.target.value)}
                     className="bg-transparent text-xs font-semibold focus:outline-none cursor-pointer"
-                    style={{ color: r.tier === 'GOLD' ? '#fcd34d' : r.tier === 'SILVER' ? '#a1a1aa' : '#fb923c' }}
+                    style={{ color: r.tier === 'GOLD' ? '#8a5a00' : r.tier === 'SILVER' ? '#41454d' : '#aa2d00' }}
                   >
                     <option value="BRONZE">BRONZE</option>
                     <option value="SILVER">SILVER</option>
@@ -291,7 +291,7 @@ function CustomersTab({ showToast }: { showToast: (m: string, t?: 'success' | 'e
                   </select>
                 </td>
                 <td className="py-3">
-                  <span className={`text-xs px-2 py-0.5 rounded-full ${r.isActive ? 'bg-emerald-500/15 text-emerald-400' : 'bg-zinc-700 text-zinc-400'}`}>
+                  <span className={`text-xs px-2 py-0.5 rounded-full ${r.isActive ? 'bg-success/10 text-success' : 'bg-strong text-subtle'}`}>
                     {r.isActive ? 'Active' : 'Inactive'}
                   </span>
                 </td>
@@ -343,34 +343,34 @@ function ProductsTab({ showToast }: { showToast: (m: string, t?: 'success' | 'er
       <SectionHeader title="Products" onAdd={() => setShowForm(v => !v)} addLabel="New Product" />
 
       {showForm && (
-        <div className="bg-zinc-800 border border-zinc-700 rounded-xl p-5 mb-5 grid grid-cols-3 gap-3">
+        <div className="bg-soft border border-hairline rounded-md p-5 mb-5 grid grid-cols-3 gap-3">
           <input placeholder="Product name *" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-            className="bg-zinc-700 border border-zinc-600 rounded-lg px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-violet-500" />
+            className="bg-strong border border-hairline rounded-lg px-3 py-2 text-sm text-ink focus:outline-none focus:border-ink" />
           <input placeholder="SKU (optional)" value={form.sku} onChange={e => setForm(f => ({ ...f, sku: e.target.value }))}
-            className="bg-zinc-700 border border-zinc-600 rounded-lg px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-violet-500" />
+            className="bg-strong border border-hairline rounded-lg px-3 py-2 text-sm text-ink focus:outline-none focus:border-ink" />
           <select value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))}
-            className="bg-zinc-700 border border-zinc-600 rounded-lg px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-violet-500">
+            className="bg-strong border border-hairline rounded-lg px-3 py-2 text-sm text-ink focus:outline-none focus:border-ink">
             <option>HARDWARE</option><option>SERVICES</option><option>SUBSCRIPTION</option>
           </select>
           <input placeholder="Unit price *" value={form.unitPrice} onChange={e => setForm(f => ({ ...f, unitPrice: e.target.value }))}
-            className="bg-zinc-700 border border-zinc-600 rounded-lg px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-violet-500" />
+            className="bg-strong border border-hairline rounded-lg px-3 py-2 text-sm text-ink focus:outline-none focus:border-ink" />
           <input placeholder="Cost price *" value={form.costPrice} onChange={e => setForm(f => ({ ...f, costPrice: e.target.value }))}
-            className="bg-zinc-700 border border-zinc-600 rounded-lg px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-violet-500" />
+            className="bg-strong border border-hairline rounded-lg px-3 py-2 text-sm text-ink focus:outline-none focus:border-ink" />
           <input placeholder="Tax rate (%) default 18" value={form.taxRate} onChange={e => setForm(f => ({ ...f, taxRate: e.target.value }))}
-            className="bg-zinc-700 border border-zinc-600 rounded-lg px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-violet-500" />
+            className="bg-strong border border-hairline rounded-lg px-3 py-2 text-sm text-ink focus:outline-none focus:border-ink" />
           <input placeholder="Description (optional)" value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-            className="col-span-3 bg-zinc-700 border border-zinc-600 rounded-lg px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-violet-500" />
+            className="col-span-3 bg-strong border border-hairline rounded-lg px-3 py-2 text-sm text-ink focus:outline-none focus:border-ink" />
           <div className="col-span-3 flex gap-2 justify-end">
-            <button onClick={() => setShowForm(false)} className="px-4 py-2 text-sm text-zinc-400 hover:text-zinc-200">Cancel</button>
-            <button onClick={create} className="px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white text-sm rounded-lg font-medium">Save</button>
+            <button onClick={() => setShowForm(false)} className="px-4 py-2 text-sm text-subtle hover:text-ink">Cancel</button>
+            <button onClick={create} className="px-4 py-2 bg-ink hover:bg-ink-active text-white text-sm rounded-lg font-medium">Save</button>
           </div>
         </div>
       )}
 
-      {loading ? <div className="text-center py-10 text-zinc-500">Loading…</div> : (
+      {loading ? <div className="text-center py-10 text-subtle">Loading…</div> : (
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-zinc-800 text-zinc-500 text-left">
+            <tr className="border-b border-hairline text-subtle text-left">
               <th className="pb-3 pr-4 font-medium">Name</th>
               <th className="pb-3 pr-4 font-medium">SKU</th>
               <th className="pb-3 pr-4 font-medium">Category</th>
@@ -381,17 +381,17 @@ function ProductsTab({ showToast }: { showToast: (m: string, t?: 'success' | 'er
           </thead>
           <tbody>
             {rows.map(r => (
-              <tr key={r.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/30 transition">
-                <td className="py-3 pr-4 font-medium text-zinc-100">{r.name}</td>
-                <td className="py-3 pr-4 text-zinc-400 font-mono text-xs">{r.sku ?? '—'}</td>
+              <tr key={r.id} className="border-b border-hairline hover:bg-soft transition">
+                <td className="py-3 pr-4 font-medium text-ink">{r.name}</td>
+                <td className="py-3 pr-4 text-subtle font-mono text-xs">{r.sku ?? '—'}</td>
                 <td className="py-3 pr-4"><CategoryBadge cat={r.category} /></td>
-                <td className="py-3 pr-4 text-zinc-200">
+                <td className="py-3 pr-4 text-ink">
                   <InlineEdit value={r.unitPrice} onSave={v => updateField(r.id, 'unitPrice', v)} type="number" min="0" />
                 </td>
-                <td className="py-3 pr-4 text-zinc-200">
+                <td className="py-3 pr-4 text-ink">
                   <InlineEdit value={r.costPrice} onSave={v => updateField(r.id, 'costPrice', v)} type="number" min="0" />
                 </td>
-                <td className="py-3 text-zinc-200">
+                <td className="py-3 text-ink">
                   <InlineEdit value={r.taxRate} onSave={v => updateField(r.id, 'taxRate', v)} type="number" min="0" max="100" />
                 </td>
               </tr>
@@ -436,16 +436,16 @@ function DiscountsTab({ showToast }: { showToast: (m: string, t?: 'success' | 'e
     load();
   };
 
-  if (loading) return <div className="text-center py-10 text-zinc-500">Loading…</div>;
+  if (loading) return <div className="text-center py-10 text-subtle">Loading…</div>;
 
   return (
     <div className="space-y-8">
       {/* Key demo callout */}
-      <div className="bg-violet-500/10 border border-violet-500/30 rounded-xl px-5 py-4 flex items-start gap-3">
-        <AlertCircle size={18} className="text-violet-400 mt-0.5 shrink-0" />
+      <div className="bg-cream border border-hairline rounded-md px-5 py-4 flex items-start gap-3">
+        <AlertCircle size={18} className="text-link mt-0.5 shrink-0" />
         <div>
-          <p className="text-sm font-semibold text-violet-300">Data-Driven Demo</p>
-          <p className="text-xs text-violet-400 mt-1">
+          <p className="text-sm font-semibold text-link">Data-Driven Demo</p>
+          <p className="text-xs text-link mt-1">
             Change Gold from <strong>15%</strong> to <strong>18%</strong> below — the quotation engine in Phase 3 will automatically use the new value. No code changes needed.
           </p>
         </div>
@@ -456,11 +456,11 @@ function DiscountsTab({ showToast }: { showToast: (m: string, t?: 'success' | 'e
         <SectionHeader title="Customer Tier — Max Discount %" />
         <div className="grid grid-cols-3 gap-4">
           {tiers.map(t => (
-            <div key={t.id} className={`rounded-xl p-5 border ${
-              t.tier === 'GOLD' ? 'bg-amber-400/5 border-amber-400/20' :
-              t.tier === 'SILVER' ? 'bg-zinc-400/5 border-zinc-400/20' :
-              'bg-orange-700/5 border-orange-600/20'
-            }`}>
+            <div key={t.id} className={`rounded-md p-5 border ${
+ t.tier === 'GOLD' ? 'bg-mustard/20 border-mustard/60' :
+ t.tier === 'SILVER' ? 'bg-strong border-hairline' :
+ 'bg-coral/8 border-coral/30'
+ }`}>
               <TierBadge tier={t.tier} />
               <div className="mt-3 flex items-end gap-1">
                 <InlineEdit
@@ -470,9 +470,9 @@ function DiscountsTab({ showToast }: { showToast: (m: string, t?: 'success' | 'e
                   min="0"
                   max="100"
                 />
-                <span className="text-zinc-400 text-sm mb-0.5">% max</span>
+                <span className="text-subtle text-sm mb-0.5">% max</span>
               </div>
-              <p className="text-xs text-zinc-600 mt-2">Click the pencil to edit</p>
+              <p className="text-xs text-line-strong mt-2">Click the pencil to edit</p>
             </div>
           ))}
         </div>
@@ -483,7 +483,7 @@ function DiscountsTab({ showToast }: { showToast: (m: string, t?: 'success' | 'e
         <SectionHeader title="Category — Hard Cap %" />
         <div className="grid grid-cols-3 gap-4">
           {cats.map(c => (
-            <div key={c.id} className="rounded-xl p-5 bg-zinc-800 border border-zinc-700">
+            <div key={c.id} className="rounded-md p-5 bg-soft border border-hairline">
               <CategoryBadge cat={c.category} />
               <div className="mt-3 flex items-end gap-1">
                 <InlineEdit
@@ -493,9 +493,9 @@ function DiscountsTab({ showToast }: { showToast: (m: string, t?: 'success' | 'e
                   min="0"
                   max="100"
                 />
-                <span className="text-zinc-400 text-sm mb-0.5">% cap</span>
+                <span className="text-subtle text-sm mb-0.5">% cap</span>
               </div>
-              <p className="text-xs text-zinc-600 mt-2">Risk engine uses this cap</p>
+              <p className="text-xs text-line-strong mt-2">Risk engine uses this cap</p>
             </div>
           ))}
         </div>
@@ -514,9 +514,9 @@ function DiscountsTab({ showToast }: { showToast: (m: string, t?: 'success' | 'e
 const PRIORITIES: Array<'HIGH' | 'MEDIUM' | 'LOW'> = ['HIGH', 'MEDIUM', 'LOW'];
 
 const PRIORITY_STYLES: Record<string, string> = {
-  HIGH: 'bg-violet-500/15 text-violet-300 border-violet-500/30',
-  MEDIUM: 'bg-zinc-700 text-zinc-300 border-zinc-600',
-  LOW: 'bg-zinc-800 text-zinc-500 border-zinc-700',
+  HIGH: 'bg-cream text-ink border-hairline',
+  MEDIUM: 'bg-strong text-body border-hairline',
+  LOW: 'bg-soft text-subtle border-hairline',
 };
 
 const BLANK_WAREHOUSE = {
@@ -532,14 +532,14 @@ function NumField({
 }) {
   return (
     <label className="block">
-      <span className="block text-xs text-zinc-500 mb-1">{label}</span>
+      <span className="block text-xs text-subtle mb-1">{label}</span>
       <div className="flex items-center gap-1.5">
         <input
           type="number" min={0} step={step} value={value}
           onChange={e => onChange(Math.max(0, Number(e.target.value) || 0))}
-          className="w-full bg-zinc-700 border border-zinc-600 rounded-lg px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-violet-500"
+          className="w-full bg-strong border border-hairline rounded-lg px-3 py-2 text-sm text-ink focus:outline-none focus:border-ink"
         />
-        {suffix && <span className="text-xs text-zinc-500 shrink-0">{suffix}</span>}
+        {suffix && <span className="text-xs text-subtle shrink-0">{suffix}</span>}
       </div>
     </label>
   );
@@ -600,17 +600,17 @@ function WarehousesTab({ showToast }: { showToast: (m: string, t?: 'success' | '
   return (
     <div>
       <SectionHeader title="Warehouses" onAdd={() => setShowForm(v => !v)} addLabel="New Warehouse" />
-      <p className="text-sm text-zinc-500 mb-5">
+      <p className="text-sm text-subtle mb-5">
         Shipping cost and lead time here decide which warehouse split the fulfillment engine recommends.
         Priority breaks ties between plans that score identically.
       </p>
 
       {showForm && (
-        <div className="bg-zinc-800 border border-zinc-700 rounded-xl p-5 mb-5 grid grid-cols-2 gap-3">
+        <div className="bg-soft border border-hairline rounded-md p-5 mb-5 grid grid-cols-2 gap-3">
           <input placeholder="Warehouse name *" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-            className="bg-zinc-700 border border-zinc-600 rounded-lg px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-violet-500" />
+            className="bg-strong border border-hairline rounded-lg px-3 py-2 text-sm text-ink focus:outline-none focus:border-ink" />
           <input placeholder="Location (optional)" value={form.location} onChange={e => setForm(f => ({ ...f, location: e.target.value }))}
-            className="bg-zinc-700 border border-zinc-600 rounded-lg px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-violet-500" />
+            className="bg-strong border border-hairline rounded-lg px-3 py-2 text-sm text-ink focus:outline-none focus:border-ink" />
 
           <NumField label="Shipping base cost (per shipment)" suffix="₹" value={form.shippingBaseCost}
             onChange={n => setForm(f => ({ ...f, shippingBaseCost: n }))} />
@@ -620,37 +620,37 @@ function WarehousesTab({ showToast }: { showToast: (m: string, t?: 'success' | '
             onChange={n => setForm(f => ({ ...f, deliveryDays: n }))} />
 
           <label className="block">
-            <span className="block text-xs text-zinc-500 mb-1">Priority</span>
+            <span className="block text-xs text-subtle mb-1">Priority</span>
             <select value={form.priority} onChange={e => setForm(f => ({ ...f, priority: e.target.value as 'HIGH' | 'MEDIUM' | 'LOW' }))}
-              className="w-full bg-zinc-700 border border-zinc-600 rounded-lg px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-violet-500">
+              className="w-full bg-strong border border-hairline rounded-lg px-3 py-2 text-sm text-ink focus:outline-none focus:border-ink">
               {PRIORITIES.map(p => <option key={p} value={p}>{p}</option>)}
             </select>
           </label>
 
           <div className="col-span-2 flex gap-2 justify-end">
-            <button onClick={() => setShowForm(false)} className="px-4 py-2 text-sm text-zinc-400 hover:text-zinc-200">Cancel</button>
-            <button onClick={create} className="px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white text-sm rounded-lg font-medium">Save</button>
+            <button onClick={() => setShowForm(false)} className="px-4 py-2 text-sm text-subtle hover:text-ink">Cancel</button>
+            <button onClick={create} className="px-4 py-2 bg-ink hover:bg-ink-active text-white text-sm rounded-lg font-medium">Save</button>
           </div>
         </div>
       )}
 
-      {loading ? <div className="text-center py-10 text-zinc-500">Loading…</div> : (
+      {loading ? <div className="text-center py-10 text-subtle">Loading…</div> : (
         <div className="grid grid-cols-2 gap-4">
           {rows.map(r => {
             const draft = draftFor(r);
             const dirty = editing[r.id] !== undefined;
             return (
-              <div key={r.id} className="bg-zinc-800 border border-zinc-700 rounded-xl p-5">
+              <div key={r.id} className="bg-soft border border-hairline rounded-md p-5">
                 <div className="flex items-start justify-between mb-4">
                   <div>
-                    <p className="font-semibold text-zinc-100">{r.name}</p>
-                    <p className="text-sm text-zinc-500 mt-0.5">{r.location ?? 'No location set'}</p>
+                    <p className="font-semibold text-ink">{r.name}</p>
+                    <p className="text-sm text-subtle mt-0.5">{r.location ?? 'No location set'}</p>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${PRIORITY_STYLES[draft.priority ?? 'MEDIUM']}`}>
                       {draft.priority ?? 'MEDIUM'}
                     </span>
-                    <span className={`text-xs px-2 py-0.5 rounded-full ${r.isActive ? 'bg-emerald-500/15 text-emerald-400' : 'bg-zinc-700 text-zinc-400'}`}>
+                    <span className={`text-xs px-2 py-0.5 rounded-full ${r.isActive ? 'bg-success/10 text-success' : 'bg-strong text-subtle'}`}>
                       {r.isActive ? 'Active' : 'Inactive'}
                     </span>
                   </div>
@@ -664,9 +664,9 @@ function WarehousesTab({ showToast }: { showToast: (m: string, t?: 'success' | '
                   <NumField label="Lead time" suffix="days" value={Number(draft.deliveryDays ?? 0)}
                     onChange={n => edit(r, { deliveryDays: n })} />
                   <label className="block">
-                    <span className="block text-xs text-zinc-500 mb-1">Priority</span>
+                    <span className="block text-xs text-subtle mb-1">Priority</span>
                     <select value={draft.priority ?? 'MEDIUM'} onChange={e => edit(r, { priority: e.target.value as 'HIGH' | 'MEDIUM' | 'LOW' })}
-                      className="w-full bg-zinc-700 border border-zinc-600 rounded-lg px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-violet-500">
+                      className="w-full bg-strong border border-hairline rounded-lg px-3 py-2 text-sm text-ink focus:outline-none focus:border-ink">
                       {PRIORITIES.map(p => <option key={p} value={p}>{p}</option>)}
                     </select>
                   </label>
@@ -676,14 +676,14 @@ function WarehousesTab({ showToast }: { showToast: (m: string, t?: 'success' | '
                   <div className="flex justify-end gap-2 mt-4">
                     <button
                       onClick={() => setEditing(d => { const next = { ...d }; delete next[r.id]; return next; })}
-                      className="px-3 py-1.5 text-sm text-zinc-400 hover:text-zinc-200"
+                      className="px-3 py-1.5 text-sm text-subtle hover:text-ink"
                     >
                       Discard
                     </button>
                     <button
                       onClick={() => save(r)}
                       disabled={saving === r.id}
-                      className="px-3 py-1.5 bg-violet-600 hover:bg-violet-500 text-white text-sm rounded-lg font-medium disabled:opacity-50"
+                      className="px-3 py-1.5 bg-ink hover:bg-ink-active text-white text-sm rounded-lg font-medium disabled:opacity-50"
                     >
                       {saving === r.id ? 'Saving…' : 'Save changes'}
                     </button>
@@ -754,45 +754,45 @@ function FulfillmentRulesTab({ showToast }: { showToast: (m: string, t?: 'succes
     } finally { setSaving(false); }
   };
 
-  if (loading || !weights) return <div className="text-center py-10 text-zinc-500">Loading…</div>;
+  if (loading || !weights) return <div className="text-center py-10 text-subtle">Loading…</div>;
 
   return (
     <div>
       <SectionHeader title="Fulfillment Scoring Weights" />
-      <p className="text-sm text-zinc-500 mb-5">
+      <p className="text-sm text-subtle mb-5">
         Every candidate warehouse split is scored 0–100 on these five factors and the highest total wins.
         Change a weight and the engine's recommendation changes with it.
-      </p>
+ </p>
 
-      <div className="space-y-4 max-w-2xl">
-        {WEIGHT_FIELDS.map(f => (
-          <div key={f.key} className="bg-zinc-800 border border-zinc-700 rounded-xl p-4">
-            <div className="flex items-center justify-between mb-2">
-              <div>
-                <p className="text-sm font-medium text-zinc-100">{f.label}</p>
-                <p className="text-xs text-zinc-500 mt-0.5">{f.hint}</p>
-              </div>
-              <span className="text-sm font-bold text-violet-300 tabular-nums w-12 text-right">{weights[f.key]}%</span>
-            </div>
-            <input
-              type="range" min={0} max={100} step={1} value={weights[f.key]}
-              onChange={e => setWeights(w => ({ ...w!, [f.key]: Number(e.target.value) }))}
-              className="w-full accent-violet-500"
-            />
-          </div>
-        ))}
-      </div>
+ <div className="space-y-4 max-w-2xl">
+ {WEIGHT_FIELDS.map(f => (
+ <div key={f.key} className="bg-soft border border-hairline rounded-md p-4">
+ <div className="flex items-center justify-between mb-2">
+ <div>
+ <p className="text-sm font-medium text-ink">{f.label}</p>
+ <p className="text-xs text-subtle mt-0.5">{f.hint}</p>
+ </div>
+ <span className="text-sm font-bold text-link tabular-nums w-12 text-right">{weights[f.key]}%</span>
+ </div>
+ <input
+ type="range" min={0} max={100} step={1} value={weights[f.key]}
+ onChange={e => setWeights(w => ({ ...w!, [f.key]: Number(e.target.value) }))}
+ className="w-full accent-ink"
+ />
+ </div>
+ ))}
+ </div>
 
-      <div className="flex items-center justify-between max-w-2xl mt-5">
-        <p className={`text-sm font-medium ${balanced ? 'text-emerald-400' : 'text-amber-400'}`}>
+ <div className="flex items-center justify-between max-w-2xl mt-5">
+ <p className={`text-sm font-medium ${balanced ? 'text-success' : 'text-warning'}`}>
           Total {total}% {balanced ? '' : '— must add up to 100 before saving'}
-        </p>
-        <button
-          onClick={save}
-          disabled={!balanced || saving}
-          className="px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white text-sm rounded-lg font-medium disabled:opacity-40 disabled:cursor-not-allowed"
-        >
-          {saving ? 'Saving…' : 'Save weights'}
+ </p>
+ <button
+ onClick={save}
+ disabled={!balanced || saving}
+ className="px-4 py-2 bg-ink hover:bg-ink-active text-white text-sm rounded-lg font-medium disabled:opacity-40 disabled:cursor-not-allowed"
+ >
+ {saving ? 'Saving…' : 'Save weights'}
         </button>
       </div>
     </div>
@@ -820,18 +820,18 @@ function InventoryTab({ showToast }: { showToast: (m: string, t?: 'success' | 'e
       quantity: parseInt(qty, 10),
     });
     showToast('Inventory updated');
-    load();
-  };
+ load();
+ };
 
-  return (
-    <div>
-      <SectionHeader title="Inventory — Stock per Warehouse" />
-      <p className="text-sm text-zinc-500 mb-5">These quantities drive the fulfillment engine's warehouse split calculation.</p>
+ return (
+ <div>
+ <SectionHeader title="Inventory — Stock per Warehouse" />
+ <p className="text-sm text-subtle mb-5">These quantities drive the fulfillment engine's warehouse split calculation.</p>
 
-      {loading ? <div className="text-center py-10 text-zinc-500">Loading…</div> : (
+      {loading ? <div className="text-center py-10 text-subtle">Loading…</div> : (
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-zinc-800 text-zinc-500 text-left">
+            <tr className="border-b border-hairline text-subtle text-left">
               <th className="pb-3 pr-4 font-medium">Product</th>
               <th className="pb-3 pr-4 font-medium">SKU</th>
               <th className="pb-3 pr-4 font-medium">Warehouse</th>
@@ -840,11 +840,11 @@ function InventoryTab({ showToast }: { showToast: (m: string, t?: 'success' | 'e
           </thead>
           <tbody>
             {rows.map(r => (
-              <tr key={r.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/30 transition">
-                <td className="py-3 pr-4 font-medium text-zinc-100">{r.productName}</td>
-                <td className="py-3 pr-4 text-zinc-400 font-mono text-xs">{r.productSku ?? '—'}</td>
-                <td className="py-3 pr-4 text-zinc-300">{r.warehouseName}</td>
-                <td className="py-3 text-zinc-200 font-semibold">
+              <tr key={r.id} className="border-b border-hairline hover:bg-soft transition">
+                <td className="py-3 pr-4 font-medium text-ink">{r.productName}</td>
+                <td className="py-3 pr-4 text-subtle font-mono text-xs">{r.productSku ?? '—'}</td>
+                <td className="py-3 pr-4 text-body">{r.warehouseName}</td>
+                <td className="py-3 text-ink font-semibold">
                   <InlineEdit
                     value={String(r.quantity)}
                     onSave={v => updateQty(r, v)}
@@ -890,9 +890,9 @@ function PlansTab({ showToast }: { showToast: (m: string, t?: 'success' | 'error
 
   const cycleBadge = (c: string) => {
     const colors: Record<string, string> = {
-      MONTHLY: 'bg-sky-500/15 text-sky-300 border-sky-500/30',
-      QUARTERLY: 'bg-indigo-500/15 text-indigo-300 border-indigo-500/30',
-      YEARLY: 'bg-violet-500/15 text-violet-300 border-violet-500/30',
+      MONTHLY: 'bg-link/10 text-link border-link/30',
+      QUARTERLY: 'bg-cream text-ink border-hairline',
+      YEARLY: 'bg-cream text-ink border-hairline',
     };
     return <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full border ${colors[c] ?? ''}`}>{c}</span>;
   };
@@ -902,34 +902,34 @@ function PlansTab({ showToast }: { showToast: (m: string, t?: 'success' | 'error
       <SectionHeader title="Subscription Plans" onAdd={() => setShowForm(v => !v)} addLabel="New Plan" />
 
       {showForm && (
-        <div className="bg-zinc-800 border border-zinc-700 rounded-xl p-5 mb-5 grid grid-cols-2 gap-3">
+        <div className="bg-soft border border-hairline rounded-md p-5 mb-5 grid grid-cols-2 gap-3">
           <input placeholder="Plan name *" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-            className="bg-zinc-700 border border-zinc-600 rounded-lg px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-violet-500" />
+            className="bg-strong border border-hairline rounded-lg px-3 py-2 text-sm text-ink focus:outline-none focus:border-ink" />
           <select value={form.billingCycle} onChange={e => setForm(f => ({ ...f, billingCycle: e.target.value }))}
-            className="bg-zinc-700 border border-zinc-600 rounded-lg px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-violet-500">
+            className="bg-strong border border-hairline rounded-lg px-3 py-2 text-sm text-ink focus:outline-none focus:border-ink">
             <option>MONTHLY</option><option>QUARTERLY</option><option>YEARLY</option>
           </select>
           <input placeholder="Price multiplier (e.g. 1.0 = monthly)" value={form.priceMultiplier} onChange={e => setForm(f => ({ ...f, priceMultiplier: e.target.value }))}
-            className="bg-zinc-700 border border-zinc-600 rounded-lg px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-violet-500" />
+            className="bg-strong border border-hairline rounded-lg px-3 py-2 text-sm text-ink focus:outline-none focus:border-ink" />
           <input placeholder="Description (optional)" value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-            className="bg-zinc-700 border border-zinc-600 rounded-lg px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-violet-500" />
+            className="bg-strong border border-hairline rounded-lg px-3 py-2 text-sm text-ink focus:outline-none focus:border-ink" />
           <div className="col-span-2 flex gap-2 justify-end">
-            <button onClick={() => setShowForm(false)} className="px-4 py-2 text-sm text-zinc-400 hover:text-zinc-200">Cancel</button>
-            <button onClick={create} className="px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white text-sm rounded-lg font-medium">Save</button>
+            <button onClick={() => setShowForm(false)} className="px-4 py-2 text-sm text-subtle hover:text-ink">Cancel</button>
+            <button onClick={create} className="px-4 py-2 bg-ink hover:bg-ink-active text-white text-sm rounded-lg font-medium">Save</button>
           </div>
         </div>
       )}
 
-      {loading ? <div className="text-center py-10 text-zinc-500">Loading…</div> : (
+      {loading ? <div className="text-center py-10 text-subtle">Loading…</div> : (
         <div className="grid grid-cols-3 gap-4">
           {rows.map(r => (
-            <div key={r.id} className="bg-zinc-800 border border-zinc-700 rounded-xl p-5">
+            <div key={r.id} className="bg-soft border border-hairline rounded-md p-5">
               <div className="flex items-center justify-between mb-3">
-                <p className="font-semibold text-zinc-100">{r.name}</p>
+                <p className="font-semibold text-ink">{r.name}</p>
                 {cycleBadge(r.billingCycle)}
               </div>
-              <p className="text-sm text-zinc-400">{r.description ?? ''}</p>
-              <p className="text-xs text-zinc-600 mt-3">Multiplier: <span className="text-zinc-400 font-mono">{r.priceMultiplier}×</span></p>
+              <p className="text-sm text-subtle">{r.description ?? ''}</p>
+              <p className="text-xs text-line-strong mt-3">Multiplier: <span className="text-subtle font-mono">{r.priceMultiplier}×</span></p>
             </div>
           ))}
         </div>

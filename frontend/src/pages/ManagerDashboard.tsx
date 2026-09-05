@@ -54,16 +54,16 @@ export default function ManagerDashboard() {
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-2xl font-bold text-white">Approval Queue</h1>
-            <p className="text-zinc-400 text-sm mt-1">
+            <h1 className="text-2xl font-bold text-ink">Approval Queue</h1>
+            <p className="text-subtle text-sm mt-1">
               Quotations pending your review.{' '}
-              <span className="text-emerald-400 font-medium">{queue.length} in queue</span>
+              <span className="text-success font-medium">{queue.length} in queue</span>
             </p>
           </div>
           <button
             onClick={refresh}
             disabled={refreshing}
-            className="flex items-center gap-2 px-4 py-2 bg-zinc-800 border border-zinc-700 text-zinc-300 hover:text-white rounded-lg text-sm transition-all"
+            className="flex items-center gap-2 px-4 py-2 bg-soft border border-hairline text-body hover:text-ink rounded-lg text-sm transition-all"
           >
             <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
             Refresh
@@ -71,17 +71,17 @@ export default function ManagerDashboard() {
         </div>
 
         {loading ? (
-          <div className="flex items-center justify-center py-32 text-zinc-500">
+          <div className="flex items-center justify-center py-32 text-subtle">
             <RefreshCw size={20} className="animate-spin mr-3" />
             Loading queue…
           </div>
         ) : queue.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-32 text-center">
-            <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mb-4">
-              <CheckSquare size={28} className="text-emerald-400" />
+            <div className="w-16 h-16 rounded-lg bg-success/10 border border-success/30 flex items-center justify-center mb-4">
+              <CheckSquare size={28} className="text-success" />
             </div>
-            <h2 className="text-lg font-semibold text-zinc-200">Queue is clear</h2>
-            <p className="text-zinc-500 text-sm mt-2 max-w-sm">
+            <h2 className="text-lg font-semibold text-ink">Queue is clear</h2>
+            <p className="text-subtle text-sm mt-2 max-w-sm">
               No quotations are waiting for your approval right now.
             </p>
           </div>

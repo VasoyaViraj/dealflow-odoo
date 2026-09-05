@@ -9,7 +9,6 @@ import {
   Settings,
   Truck,
   LogOut,
-  Zap,
 } from 'lucide-react';
 import type { AuthUser } from '../../lib/auth';
 
@@ -21,12 +20,12 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { label: 'Admin Panel',    to: '/admin',   icon: <Settings size={18} />,      roles: ['ADMIN'] },
-  { label: 'Sales Workspace', to: '/sales',   icon: <ShoppingCart size={18} />,  roles: ['SALES_REPRESENTATIVE'] },
-  { label: 'Approvals',      to: '/manager', icon: <CheckSquare size={18} />,   roles: ['SALES_MANAGER'] },
-  { label: 'Finance',        to: '/finance', icon: <DollarSign size={18} />,    roles: ['FINANCE_OPERATIONS'] },
-  { label: 'Fulfillment',    to: '/fulfillment', icon: <Truck size={18} />,     roles: ['FINANCE_OPERATIONS', 'ADMIN'] },
-  { label: 'My Portal',      to: '/portal',  icon: <Globe size={18} />,         roles: ['CUSTOMER'] },
+  { label: 'Admin Panel',    to: '/admin',   icon: <Settings size={17} />,      roles: ['ADMIN'] },
+  { label: 'Sales Workspace', to: '/sales',   icon: <ShoppingCart size={17} />,  roles: ['SALES_REPRESENTATIVE'] },
+  { label: 'Approvals',      to: '/manager', icon: <CheckSquare size={17} />,   roles: ['SALES_MANAGER'] },
+  { label: 'Finance',        to: '/finance', icon: <DollarSign size={17} />,    roles: ['FINANCE_OPERATIONS'] },
+  { label: 'Fulfillment',    to: '/fulfillment', icon: <Truck size={17} />,     roles: ['FINANCE_OPERATIONS', 'ADMIN'] },
+  { label: 'My Portal',      to: '/portal',  icon: <Globe size={17} />,         roles: ['CUSTOMER'] },
 ];
 
 function roleLabel(role: AuthUser['role']) {
@@ -40,15 +39,30 @@ function roleLabel(role: AuthUser['role']) {
   return m[role] ?? role;
 }
 
+/* Roles get a signature card surface rather than a saturated accent chip —
+   the same palette the marketing pages use for their voltage moments. */
 function roleBadgeColor(role: AuthUser['role']) {
   const m: Record<string, string> = {
-    ADMIN: 'bg-purple-500/20 text-purple-300 border-purple-500/30',
-    SALES_REPRESENTATIVE: 'bg-blue-500/20 text-blue-300 border-blue-500/30',
-    SALES_MANAGER: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
-    FINANCE_OPERATIONS: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
-    CUSTOMER: 'bg-sky-500/20 text-sky-300 border-sky-500/30',
+    ADMIN: 'bg-cream text-ink border-mustard/40',
+    SALES_REPRESENTATIVE: 'bg-link/8 text-link border-link/25',
+    SALES_MANAGER: 'bg-mint/40 text-forest border-forest/20',
+    FINANCE_OPERATIONS: 'bg-mustard/20 text-warning border-mustard/50',
+    CUSTOMER: 'bg-peach/30 text-coral border-coral/25',
   };
-  return m[role] ?? 'bg-zinc-500/20 text-zinc-300';
+  return m[role] ?? 'bg-soft text-subtle border-hairline';
+}
+
+export function DealFlowMark({ size = 32 }: { size?: number }) {
+  /* The mark is three stacked deal stages narrowing to a close — drawn rather
+     than iconified so it holds up at nav size and at hero size. */
+  return (
+    <svg width={size} height={size} viewBox="0 0 32 32" fill="none" aria-hidden="true">
+      <rect width="32" height="32" rx="8" fill="#181d26" />
+      <rect x="7" y="9" width="18" height="3.2" rx="1.6" fill="#fcab79" />
+      <rect x="7" y="14.4" width="13" height="3.2" rx="1.6" fill="#a8d8c4" />
+      <rect x="7" y="19.8" width="8" height="3.2" rx="1.6" fill="#ffffff" />
+    </svg>
+  );
 }
 
 export default function AppShell({ children }: { children: ReactNode }) {
@@ -65,31 +79,30 @@ export default function AppShell({ children }: { children: ReactNode }) {
   );
 
   return (
-    <div className="flex h-screen bg-zinc-950 text-zinc-100 overflow-hidden">
-      {/* Sidebar */}
-      <aside className="w-64 flex flex-col bg-zinc-900 border-r border-zinc-800 shrink-0">
-        {/* Logo */}
-        <div data-onboarding-id="app-logo" className="flex items-center gap-3 px-6 py-5 border-b border-zinc-800">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center shadow-lg">
-            <Zap size={16} className="text-white" />
-          </div>
+    <div className="flex h-screen bg-canvas text-body overflow-hidden">
+      {/* Sidebar — white canvas separated by a hairline, never a dark rail */}
+      <aside className="w-[248px] flex flex-col bg-canvas border-r border-hairline shrink-0">
+        <div data-onboarding-id="app-logo" className="flex items-center gap-3 px-5 h-16 border-b border-hairline">
+          <DealFlowMark size={30} />
           <div>
-            <p className="text-sm font-semibold text-white leading-none">DealFlow360</p>
-            <p className="text-xs text-zinc-500 mt-0.5">B2B Sales Platform</p>
+            <p className="text-[15px] font-medium text-ink leading-none tracking-tight">
+              DealFlow360
+            </p>
+            <p className="text-[11px] text-subtle mt-1">B2B revenue operations</p>
           </div>
         </div>
 
-        {/* Nav */}
-        <nav data-onboarding-id="sidebar-nav" className="flex-1 px-3 py-4 space-y-1">
+        <nav data-onboarding-id="sidebar-nav" className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
+          <p className="type-eyebrow px-3 pb-2 text-[10px]">Workspace</p>
           {visibleNav.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
               className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 ${
+                `flex items-center gap-3 px-3 py-2.5 rounded-md text-sm transition-colors ${
                   isActive
-                    ? 'bg-violet-600/20 text-violet-300 border border-violet-500/30'
-                    : 'text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800'
+                    ? 'bg-ink text-white font-medium'
+                    : 'text-body font-normal hover:bg-soft hover:text-ink'
                 }`
               }
             >
@@ -99,24 +112,27 @@ export default function AppShell({ children }: { children: ReactNode }) {
           ))}
         </nav>
 
-        {/* User info */}
         {user && (
-          <div data-onboarding-id="user-info" className="border-t border-zinc-800 p-4">
+          <div data-onboarding-id="user-info" className="border-t border-hairline p-4">
             <div className="flex items-center gap-3 mb-3">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-white text-xs font-bold">
+              <div className="w-9 h-9 rounded-full bg-ink flex items-center justify-center text-white text-[11px] font-semibold shrink-0">
                 {user.firstName[0]}{user.lastName[0]}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-zinc-100 truncate">{user.firstName} {user.lastName}</p>
-                <p className="text-xs text-zinc-500 truncate">{user.email}</p>
+                <p className="text-sm font-medium text-ink truncate leading-tight">
+                  {user.firstName} {user.lastName}
+                </p>
+                <p className="text-[11px] text-subtle truncate">{user.email}</p>
               </div>
             </div>
-            <span className={`inline-block text-xs px-2 py-0.5 rounded-full border font-medium mb-3 ${roleBadgeColor(user.role)}`}>
+            <span
+              className={`inline-block text-[11px] px-2 py-0.5 rounded-full border font-medium mb-3 ${roleBadgeColor(user.role)}`}
+            >
               {roleLabel(user.role)}
             </span>
             <button
               onClick={handleLogout}
-              className="flex items-center gap-2 w-full px-3 py-2 text-sm text-zinc-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all duration-150"
+              className="flex items-center gap-2 w-full px-3 py-2 text-sm text-subtle hover:text-coral hover:bg-coral/6 rounded-md transition-colors"
             >
               <LogOut size={15} />
               Sign out
@@ -125,10 +141,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
         )}
       </aside>
 
-      {/* Main content */}
-      <main className="flex-1 overflow-auto">
-        {children}
-      </main>
+      <main className="flex-1 overflow-auto">{children}</main>
     </div>
   );
 }

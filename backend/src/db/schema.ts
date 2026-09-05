@@ -233,3 +233,88 @@ export const priceListItems = pgTable('price_list_items', {
 }, (table) => [
   uniqueIndex('price_list_product_idx').on(table.priceListId, table.productId),
 ]);
+
+// ─── Phase 4 Tables — Discount Risk + Approval Engine ────────────────────────
+
+export const quotationStatusEnum = pgEnum('quotation_status', [
+  'DRAFT',
+  'SUBMITTED',
+  'RISK_CALCULATED',
+  'PENDING_MANAGER',
+  'PENDING_FINANCE',
+  'APPROVED',
+  'REJECTED',
+  'REVISION_REQUESTED',
+]);
+
+export const approvalDecisionEnum = pgEnum('approval_decision', [
+  'APPROVED',
+  'REJECTED',
+  'REVISION_REQUESTED',
+]);
+
+/**
+ * quotations — Core deal table.
+ * Created in Phase 4 as a stub; Phase 3 will build the quotation builder on top.
+ * riskScore and approvalLevel are populated by the DiscountRiskEngine.
+ */
+export const quotations = pgTable('quotations', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  customerId: uuid('customer_id')
+    .notNull()
+    .references(() => customers.id),
+  salesRepId: uuid('sales_rep_id')
+    .notNull()
+    .references(() => users.id),
+  status: quotationStatusEnum('status').notNull().default('DRAFT'),
+  subtotal: numeric('subtotal', { precision: 14, scale: 2 }).notNull().default('0'),
+  discountAmount: numeric('discount_amount', { precision: 14, scale: 2 }).notNull().default('0'),
+  taxAmount: numeric('tax_amount', { precision: 14, scale: 2 }).notNull().default('0'),
+  grandTotal: numeric('grand_total', { precision: 14, scale: 2 }).notNull().default('0'),
+  margin: numeric('margin', { precision: 14, scale: 2 }).notNull().default('0'),
+  marginPercent: numeric('margin_percent', { precision: 5, scale: 2 }).notNull().default('0'),
+  riskScore: numeric('risk_score', { precision: 7, scale: 2 }),
+  approvalLevel: text('approval_level'), // 'NONE' | 'SALES_MANAGER' | 'FINANCE'
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+/**
+ * quotation_lines — Individual product lines on a quotation.
+ * discountPercent is the rep-applied discount on this line.
+ */
+export const quotationLines = pgTable('quotation_lines', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  quotationId: uuid('quotation_id')
+    .notNull()
+    .references(() => quotations.id, { onDelete: 'cascade' }),
+  productId: uuid('product_id')
+    .notNull()
+    .references(() => products.id),
+  quantity: integer('quantity').notNull().default(1),
+  unitPrice: numeric('unit_price', { precision: 12, scale: 2 }).notNull(),
+  discountPercent: numeric('discount_percent', { precision: 5, scale: 2 }).notNull().default('0'),
+  discountAmount: numeric('discount_amount', { precision: 12, scale: 2 }).notNull().default('0'),
+  finalPrice: numeric('final_price', { precision: 12, scale: 2 }).notNull(),
+  cost: numeric('cost', { precision: 12, scale: 2 }).notNull(),
+  margin: numeric('margin', { precision: 12, scale: 2 }).notNull().default('0'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+/**
+ * quotation_approvals — Audit trail of every approval decision.
+ * Each row records a single approve / reject / revision-request action.
+ */
+export const quotationApprovals = pgTable('quotation_approvals', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  quotationId: uuid('quotation_id')
+    .notNull()
+    .references(() => quotations.id, { onDelete: 'cascade' }),
+  approverId: uuid('approver_id')
+    .notNull()
+    .references(() => users.id),
+  approvalLevel: text('approval_level').notNull(), // 'SALES_MANAGER' | 'FINANCE'
+  decision: approvalDecisionEnum('decision').notNull(),
+  reason: text('reason'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});

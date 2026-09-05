@@ -82,7 +82,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
     <div className="flex h-screen bg-canvas text-body overflow-hidden">
       {/* Sidebar — white canvas separated by a hairline, never a dark rail */}
       <aside className="w-[248px] flex flex-col bg-canvas border-r border-hairline shrink-0">
-        <div className="flex items-center gap-3 px-5 h-16 border-b border-hairline">
+        <div data-onboarding-id="app-logo" className="flex items-center gap-3 px-5 h-16 border-b border-hairline">
           <DealFlowMark size={30} />
           <div>
             <p className="text-[15px] font-medium text-ink leading-none tracking-tight">
@@ -92,7 +92,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
           </div>
         </div>
 
-        <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
+        <nav data-onboarding-id="sidebar-nav" className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
           <p className="type-eyebrow px-3 pb-2 text-[10px]">Workspace</p>
           {visibleNav.map((item) => (
             <NavLink
@@ -113,7 +113,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
         </nav>
 
         {user && (
-          <div className="border-t border-hairline p-4">
+          <div data-onboarding-id="user-info" className="border-t border-hairline p-4">
             <div className="flex items-center gap-3 mb-3">
               <div className="w-9 h-9 rounded-full bg-ink flex items-center justify-center text-white text-[11px] font-semibold shrink-0">
                 {user.firstName[0]}{user.lastName[0]}

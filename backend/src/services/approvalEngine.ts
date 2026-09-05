@@ -92,8 +92,8 @@ export async function submitForApproval(quotationId: string, userId: string): Pr
     throw new Error(`Quotation ${quotationId} not found`);
   }
 
-  if (quotation.status !== 'DRAFT' && quotation.status !== 'REVISION_REQUESTED') {
-    throw new Error(`Quotation cannot be submitted from status '${quotation.status}'. Must be DRAFT or REVISION_REQUESTED.`);
+  if (quotation.status !== 'DRAFT' && quotation.status !== 'REVISION_REQUESTED' && quotation.status !== 'NEGOTIATION_REQUESTED') {
+    throw new Error(`Quotation cannot be submitted from status '${quotation.status}'. Must be DRAFT, REVISION_REQUESTED, or NEGOTIATION_REQUESTED.`);
   }
 
   // 2. Run the risk engine (read-only) before writing anything. Calculating risk

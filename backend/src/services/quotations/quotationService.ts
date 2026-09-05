@@ -101,7 +101,7 @@ export interface ListQuotationsFilters {
 // REVISION_REQUESTED is editable so the rep can act on a reviewer's feedback:
 // Phase 4 leaves the quotation in REVISION_REQUESTED (it never reverts it to
 // DRAFT), and submitForApproval accepts it as a resubmittable state.
-const EDITABLE_STATUSES = new Set(['DRAFT', 'REVISION_REQUESTED']);
+const EDITABLE_STATUSES = new Set(['DRAFT', 'REVISION_REQUESTED', 'NEGOTIATION_REQUESTED']);
 
 // ─── Public commands ─────────────────────────────────────────────────────────
 
@@ -149,41 +149,42 @@ export async function listQuotations(actor: AuthUser, filters: ListQuotationsFil
   const where = and(...conditions);
   const offset = (filters.page - 1) * filters.limit;
 
-  const rows = await db
-    .select({
-      id: quotations.id,
-      quotationNumber: quotations.quotationNumber,
-      customerId: quotations.customerId,
-      customerName: customers.name,
-      customerTier: customers.tier,
-      salesRepId: quotations.salesRepId,
-      status: quotations.status,
-      subtotal: quotations.subtotal,
-      discountAmount: quotations.discountAmount,
-      taxAmount: quotations.taxAmount,
-      grandTotal: quotations.grandTotal,
-      totalCost: quotations.totalCost,
-      margin: quotations.margin,
-      marginPercent: quotations.marginPercent,
-      riskScore: quotations.riskScore,
-      approvalLevel: quotations.approvalLevel,
-      version: quotations.version,
-      submittedAt: quotations.submittedAt,
-      createdAt: quotations.createdAt,
-      updatedAt: quotations.updatedAt,
-    })
-    .from(quotations)
-    .innerJoin(customers, eq(customers.id, quotations.customerId))
-    .where(where)
-    .orderBy(desc(quotations.createdAt))
-    .limit(filters.limit)
-    .offset(offset);
-
-  const [{ total }] = await db
-    .select({ total: sql<number>`count(*)::int` })
-    .from(quotations)
-    .innerJoin(customers, eq(customers.id, quotations.customerId))
-    .where(where);
+  const [rows, [{ total }]] = await Promise.all([
+    db
+      .select({
+        id: quotations.id,
+        quotationNumber: quotations.quotationNumber,
+        customerId: quotations.customerId,
+        customerName: customers.name,
+        customerTier: customers.tier,
+        salesRepId: quotations.salesRepId,
+        status: quotations.status,
+        subtotal: quotations.subtotal,
+        discountAmount: quotations.discountAmount,
+        taxAmount: quotations.taxAmount,
+        grandTotal: quotations.grandTotal,
+        totalCost: quotations.totalCost,
+        margin: quotations.margin,
+        marginPercent: quotations.marginPercent,
+        riskScore: quotations.riskScore,
+        approvalLevel: quotations.approvalLevel,
+        version: quotations.version,
+        submittedAt: quotations.submittedAt,
+        createdAt: quotations.createdAt,
+        updatedAt: quotations.updatedAt,
+      })
+      .from(quotations)
+      .innerJoin(customers, eq(customers.id, quotations.customerId))
+      .where(where)
+      .orderBy(desc(quotations.createdAt))
+      .limit(filters.limit)
+      .offset(offset),
+    db
+      .select({ total: sql<number>`count(*)::int` })
+      .from(quotations)
+      .innerJoin(customers, eq(customers.id, quotations.customerId))
+      .where(where),
+  ]);
 
   return {
     items: rows.map((row) => serializeSummary(row, actor)),
@@ -426,7 +427,7 @@ export async function submitQuotation(
     assertMutable(actor, quotation);
     assertVersion(quotation, expectedVersion);
 
-    if (quotation.status !== 'DRAFT' && quotation.status !== 'REVISION_REQUESTED') {
+    if (quotation.status !== 'DRAFT' && quotation.status !== 'REVISION_REQUESTED' && quotation.status !== 'NEGOTIATION_REQUESTED') {
       throw new QuotationError(
         'INVALID_STATE_TRANSITION',
         `A quotation in status ${quotation.status} cannot be submitted`,
@@ -479,6 +480,69 @@ function translateApprovalError(err: unknown): unknown {
     return new QuotationError('INVALID_STATE_TRANSITION', err.message);
   }
   return err;
+}
+
+/**
+ * Phase 8 — submit a negotiation request.
+ * Can only be called by the CUSTOMER.
+ */
+export async function submitNegotiation(actor: AuthUser, quotationId: string, note: string) {
+  return db.transaction(async (tx) => {
+    const quotation = await loadAuthorizedQuotation(tx, quotationId, actor);
+    if (actor.role !== ROLE.CUSTOMER) {
+      throw new QuotationError('FORBIDDEN', 'Only customers can submit negotiations');
+    }
+    
+    // PortalQuotationDetail allows negotiation on SUBMITTED, PENDING_MANAGER, PENDING_FINANCE
+    if (!['SUBMITTED', 'PENDING_MANAGER', 'PENDING_FINANCE', 'APPROVED'].includes(quotation.status)) {
+      throw new QuotationError('INVALID_STATE_TRANSITION', 'Quotation is not in a negotiable state');
+    }
+
+    const currentNotes = quotation.notes ? quotation.notes + '\n\n' : '';
+    const newNotes = currentNotes + `Customer Negotiation Request:\n${note}`;
+
+    await tx
+      .update(quotations)
+      .set({ 
+        status: 'NEGOTIATION_REQUESTED', 
+        notes: newNotes, 
+        version: sql`${quotations.version} + 1`,
+        updatedAt: new Date() 
+      })
+      .where(eq(quotations.id, quotationId));
+
+    await logAudit(tx, actor, 'QUOTATION_NEGOTIATION_REQUESTED', quotationId, { note });
+    return hydrate(tx, quotationId, actor);
+  });
+}
+
+/**
+ * Phase 8 — confirm an APPROVED quotation.
+ * Can only be called by the CUSTOMER.
+ */
+export async function confirmQuotation(actor: AuthUser, quotationId: string) {
+  return db.transaction(async (tx) => {
+    const quotation = await loadAuthorizedQuotation(tx, quotationId, actor);
+    if (actor.role !== ROLE.CUSTOMER) {
+      throw new QuotationError('FORBIDDEN', 'Only customers can confirm quotations');
+    }
+    
+    if (quotation.status !== 'APPROVED') {
+      throw new QuotationError('INVALID_STATE_TRANSITION', 'Only approved quotations can be confirmed');
+    }
+
+    await tx
+      .update(quotations)
+      .set({ 
+        status: 'CONFIRMED', 
+        version: sql`${quotations.version} + 1`,
+        updatedAt: new Date() 
+      })
+      .where(eq(quotations.id, quotationId));
+
+    await logAudit(tx, actor, 'QUOTATION_CONFIRMED', quotationId, {});
+    return hydrate(tx, quotationId, actor);
+  });
 }
 
 // ─── Calculation ─────────────────────────────────────────────────────────────
@@ -646,6 +710,7 @@ interface LoadedQuotation extends AuthorizableQuotation {
   id: string;
   version: number;
   customerId: string;
+  notes: string | null;
 }
 
 async function loadAuthorizedQuotation(
@@ -662,6 +727,7 @@ async function loadAuthorizedQuotation(
       salesRepId: quotations.salesRepId,
       status: quotations.status,
       version: quotations.version,
+      notes: quotations.notes,
       customerLinkedUserId: customers.linkedUserId,
     })
     .from(quotations)

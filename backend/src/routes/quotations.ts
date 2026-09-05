@@ -320,4 +320,38 @@ router.post('/:id/submit', async (req, res) => {
   }
 });
 
+const negotiateSchema = z.object({
+  note: z.string().min(1).max(2000),
+});
+
+/** Phase 8 — submit a negotiation request. */
+router.post('/:id/negotiate', async (req, res) => {
+  const parsed = negotiateSchema.safeParse(req.body);
+  if (!parsed.success) return invalid(req, res, parsed.error);
+
+  try {
+    const quotation = await quotationService.submitNegotiation(
+      req.user!,
+      req.params.id,
+      parsed.data.note,
+    );
+    return ok(res, quotation);
+  } catch (err) {
+    return fail(req, res, err);
+  }
+});
+
+/** Phase 8 — confirm an approved quotation. */
+router.post('/:id/confirm', async (req, res) => {
+  try {
+    const quotation = await quotationService.confirmQuotation(
+      req.user!,
+      req.params.id,
+    );
+    return ok(res, quotation);
+  } catch (err) {
+    return fail(req, res, err);
+  }
+});
+
 export default router;

@@ -79,6 +79,7 @@ export const users = pgTable('users', {
   role: userRoleEnum('role').notNull(),
   status: userStatusEnum('status').notNull().default('ACTIVE'),
   lastLoginAt: timestamp('last_login_at'),
+  hasCompletedOnboarding: boolean('has_completed_onboarding').notNull().default(false),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
@@ -92,7 +93,9 @@ export const refreshTokens = pgTable('refresh_tokens', {
   expiresAt: timestamp('expires_at').notNull(),
   revokedAt: timestamp('revoked_at'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
-});
+}, (table) => [
+  index('refresh_tokens_user_idx').on(table.userId),
+]);
 
 export const auditLogs = pgTable('audit_logs', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -124,7 +127,10 @@ export const customers = pgTable('customers', {
   isActive: boolean('is_active').notNull().default(true),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
-});
+}, (table) => [
+  index('customers_active_name_idx').on(table.isActive, table.name),
+  index('customers_linked_user_idx').on(table.linkedUserId),
+]);
 
 /**
  * products — The product catalogue.
@@ -143,7 +149,9 @@ export const products = pgTable('products', {
   isActive: boolean('is_active').notNull().default(true),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
-});
+}, (table) => [
+  index('products_active_category_name_idx').on(table.isActive, table.category, table.name),
+]);
 
 /**
  * discount_tier_configs — Data-driven tier discount limits.
@@ -303,6 +311,8 @@ export const quotationStatusEnum = pgEnum('quotation_status', [
   'APPROVED',
   'REJECTED',
   'REVISION_REQUESTED',
+  'NEGOTIATION_REQUESTED',
+  'CONFIRMED',
   'EXPIRED',
   'CANCELLED',
 ]);
@@ -375,6 +385,9 @@ export const quotations = pgTable('quotations', {
   index('quotations_sales_rep_idx').on(table.salesRepId),
   index('quotations_status_idx').on(table.status),
   index('quotations_created_at_idx').on(table.createdAt),
+  index('quotations_status_updated_at_idx').on(table.status, table.updatedAt),
+  index('quotations_sales_rep_created_at_idx').on(table.salesRepId, table.createdAt),
+  index('quotations_customer_created_at_idx').on(table.customerId, table.createdAt),
 ]);
 
 /**
@@ -516,6 +529,8 @@ export const fulfillmentOrders = pgTable('fulfillment_orders', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => [
   index('fulfillment_orders_status_idx').on(table.status),
+  index('fulfillment_orders_created_at_idx').on(table.createdAt),
+  index('fulfillment_orders_status_created_at_idx').on(table.status, table.createdAt),
 ]);
 
 /**
@@ -574,6 +589,7 @@ export const fulfillmentAllocations = pgTable('fulfillment_allocations', {
 }, (table) => [
   index('fulfillment_allocations_order_idx').on(table.fulfillmentOrderId),
   index('fulfillment_allocations_line_idx').on(table.quotationLineId),
+  index('fulfillment_allocations_order_backorder_idx').on(table.fulfillmentOrderId, table.isBackorder),
 ]);
 
 /**
@@ -683,6 +699,9 @@ export const invoices = pgTable('invoices', {
   index('invoices_quotation_idx').on(table.quotationId),
   index('invoices_customer_idx').on(table.customerId),
   index('invoices_status_idx').on(table.status),
+  index('invoices_created_at_idx').on(table.createdAt),
+  index('invoices_status_created_at_idx').on(table.status, table.createdAt),
+  index('invoices_customer_created_at_idx').on(table.customerId, table.createdAt),
 ]);
 
 /**
@@ -742,6 +761,9 @@ export const subscriptions = pgTable('subscriptions', {
   index('subscriptions_quotation_idx').on(table.quotationId),
   index('subscriptions_customer_idx').on(table.customerId),
   index('subscriptions_status_idx').on(table.status),
+  index('subscriptions_created_at_idx').on(table.createdAt),
+  index('subscriptions_status_created_at_idx').on(table.status, table.createdAt),
+  index('subscriptions_customer_created_at_idx').on(table.customerId, table.createdAt),
 ]);
 
 /**
@@ -767,4 +789,5 @@ export const billingScheduleEntries = pgTable('billing_schedule_entries', {
 }, (table) => [
   index('billing_schedule_subscription_idx').on(table.subscriptionId),
   index('billing_schedule_due_date_idx').on(table.dueDate),
+  index('billing_schedule_subscription_status_due_idx').on(table.subscriptionId, table.status, table.dueDate),
 ]);

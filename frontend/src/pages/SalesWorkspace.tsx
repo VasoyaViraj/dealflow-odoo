@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import api from '../lib/api';
 import { StatusBadge, CategoryBadge, TierBadge } from '../components/ui/badges';
+import { getProducts, getSubscriptionPlans } from '../lib/referenceData';
 import FulfillmentPanel from '../components/fulfillment/FulfillmentPanel';
 import { BillingOverview } from '../components/billing/BillingOverview';
 import type { SubscriptionPlan } from '../types/billing';
@@ -322,11 +323,11 @@ function QuotationBuilderView({
   const [sidebarTab, setSidebarTab] = useState<'summary' | 'billing'>('summary');
   const notesTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
-  const isEditable = q.status === 'DRAFT';
+  const isEditable = q && ['DRAFT', 'REVISION_REQUESTED', 'NEGOTIATION_REQUESTED'].includes(q.status);
 
   useEffect(() => {
-    api.get('/products').then(r => setProducts(r.data.data));
-    api.get('/products/subscription-plans').then(r => setSubscriptionPlans(r.data.data)).catch(() => {});
+    getProducts().then(setProducts);
+    getSubscriptionPlans().then(setSubscriptionPlans).catch(() => {});
   }, []);
 
   // ─ Product Catalogue helpers
@@ -932,14 +933,15 @@ export default function SalesWorkspace() {
       ) : null}
 
       {showCreateModal && (
-        <CreateQuotationModal
-          onClose={() => setShowCreateModal(false)}
-          onCreated={async (q) => {
-            setShowCreateModal(false);
-            await openBuilder(q);
-          }}
-          showToast={showToast}
-        />
+          <CreateQuotationModal
+            onClose={() => setShowCreateModal(false)}
+            onCreated={async (q) => {
+              setShowCreateModal(false);
+              setSelected(q);
+              setView('builder');
+            }}
+            showToast={showToast}
+          />
       )}
 
       {toast && <Toast msg={toast.msg} type={toast.type} />}

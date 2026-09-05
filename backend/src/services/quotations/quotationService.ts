@@ -548,7 +548,7 @@ async function persistLineTotals(
       final_price               = v.final_price,
       cost                      = v.cost,
       margin                    = v.margin,
-      margin_pct                = v.margin_pct,
+      margin_percent            = v.margin_percent,
       allocated_discount_amount = v.allocated_discount_amount,
       net_amount                = v.net_amount,
       tax_amount                = v.tax_amount,
@@ -557,7 +557,7 @@ async function persistLineTotals(
       discount_over_limit_pct   = v.discount_over_limit_pct,
       updated_at                = now()
     FROM (VALUES ${sql.join(values, sql`, `)}) AS v(
-      id, gross_amount, discount_amount, final_price, cost, margin, margin_pct,
+      id, gross_amount, discount_amount, final_price, cost, margin, margin_percent,
       allocated_discount_amount, net_amount, tax_amount, line_total,
       max_discount_pct, discount_over_limit_pct
     )

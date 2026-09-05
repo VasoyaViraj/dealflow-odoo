@@ -303,6 +303,8 @@ export const quotationStatusEnum = pgEnum('quotation_status', [
   'APPROVED',
   'REJECTED',
   'REVISION_REQUESTED',
+  'NEGOTIATION_REQUESTED',
+  'CONFIRMED',
   'EXPIRED',
   'CANCELLED',
 ]);

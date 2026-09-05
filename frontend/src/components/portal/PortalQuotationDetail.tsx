@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { ArrowLeft, CheckCircle, FileText, Send, MessageSquare } from 'lucide-react';
+import api from '../../lib/api';
 import type { Quotation } from '../../types/quotation';
 import { StatusBadge, CategoryBadge } from '../ui/badges';
 
@@ -45,19 +46,29 @@ export function PortalQuotationDetail({
       return;
     }
     setSubmittingRequest(true);
-    await new Promise(r => setTimeout(r, 800));
-    setSubmittingRequest(false);
-    setRequestSubmitted(true);
-    setCounterNote('');
-    showToast('Negotiation request submitted — your sales rep will follow up');
+    try {
+      await api.post(`/quotations/${quotation.id}/negotiate`, { note: counterNote });
+      setRequestSubmitted(true);
+      setCounterNote('');
+      showToast('Negotiation request submitted — your sales rep will follow up');
+    } catch {
+      showToast('Failed to submit negotiation request', 'error');
+    } finally {
+      setSubmittingRequest(false);
+    }
   };
 
   const handleConfirmOrder = async () => {
     setConfirmingOrder(true);
-    await new Promise(r => setTimeout(r, 800));
-    setConfirmingOrder(false);
-    setOrderConfirmed(true);
-    showToast('Order confirmed — your sales rep has been notified');
+    try {
+      await api.post(`/quotations/${quotation.id}/confirm`);
+      setOrderConfirmed(true);
+      showToast('Order confirmed — your sales rep has been notified');
+    } catch {
+      showToast('Failed to confirm order', 'error');
+    } finally {
+      setConfirmingOrder(false);
+    }
   };
 
   return (

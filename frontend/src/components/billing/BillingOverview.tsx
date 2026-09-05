@@ -166,7 +166,7 @@ export function BillingOverview({ quotationId, userRole, showToast }: BillingOve
               id="generate-invoice-btn"
               onClick={handleGenerateInvoice}
               disabled={generatingInv}
-              className="flex items-center gap-2 px-4 py-2 bg-link -active text-ink text-xs font-semibold rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+              className="flex items-center gap-2 px-4 py-2 bg-link hover:bg-link-active text-ink text-xs font-semibold rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
             >
               {generatingInv
                 ? <RefreshCw size={12} className="animate-spin" />

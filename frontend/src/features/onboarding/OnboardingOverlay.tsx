@@ -7,6 +7,7 @@ import {
   shift,
   autoUpdate,
 } from '@floating-ui/react';
+import type { VirtualElement } from '@floating-ui/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useOnboarding } from './OnboardingContext';
 import { OnboardingCharacter } from './OnboardingCharacter';
@@ -83,9 +84,7 @@ export function OnboardingOverlay() {
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
 
   // Virtual reference element for @floating-ui/react
-  const virtualRef = useRef<{
-    getBoundingClientRect: () => DOMRect;
-  }>({
+  const virtualRef = useRef<VirtualElement>({
     getBoundingClientRect: () =>
       new DOMRect(0, 0, 0, 0),
   });
@@ -94,7 +93,6 @@ export function OnboardingOverlay() {
     placement: 'bottom-start',
     middleware: [offset(16), flip({ padding: 20 }), shift({ padding: 20 })],
     whileElementsMounted: autoUpdate,
-    elements: { reference: virtualRef.current },
   });
 
   // Measure the target element whenever the step changes
@@ -117,7 +115,9 @@ export function OnboardingOverlay() {
     };
 
     // Force floating-ui to recalculate
-    refs.setReference(virtualRef.current as never);
+    // A virtual element can only be attached through setPositionReference —
+    // the `elements.reference` option accepts real DOM Elements only.
+    refs.setPositionReference(virtualRef.current);
   }, [isActive, steps, currentStep, refs]);
 
   useEffect(() => {

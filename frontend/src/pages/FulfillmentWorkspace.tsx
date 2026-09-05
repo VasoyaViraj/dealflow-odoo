@@ -69,106 +69,106 @@ export default function FulfillmentWorkspace() {
   const nameOf = (q: ApprovedQuotation) =>
     q.customer?.name ?? q.customerName ?? orderByQuotation.get(q.id)?.customerName ?? '—';
 
-  const card = (q: ApprovedQuotation) => {
-    const order = orderByQuotation.get(q.id);
-    const selected = q.id === selectedId;
-    return (
-      <button
-        key={q.id}
-        onClick={() => setSelectedId(q.id)}
-        className={`w-full text-left rounded-xl border px-4 py-3 transition-all ${
-          selected
-            ? 'bg-violet-600/15 border-violet-500/40'
-            : 'bg-zinc-900 border-zinc-800 hover:border-zinc-700'
-        }`}
-      >
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-sm font-semibold text-zinc-100">{q.quotationNumber}</span>
-          {order ? (
-            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-              order.status === 'FULFILLED'
-                ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
-                : 'bg-amber-500/15 text-amber-300 border-amber-500/30'
+ const card = (q: ApprovedQuotation) => {
+ const order = orderByQuotation.get(q.id);
+ const selected = q.id === selectedId;
+ return (
+ <button
+ key={q.id}
+ onClick={() => setSelectedId(q.id)}
+ className={`w-full text-left rounded-md border px-4 py-3 transition-all ${
+ selected
+ ? 'bg-cream border-ink'
+            : 'bg-canvas border-hairline hover:border-line-strong'
+ }`}
+ >
+ <div className="flex items-center justify-between gap-2">
+ <span className="text-sm font-semibold text-ink">{q.quotationNumber}</span>
+ {order ? (
+ <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+ order.status === 'FULFILLED'
+                ? 'bg-success/10 text-success border-success/30'
+                : 'bg-mustard/20 text-warning border-mustard/60'
             }`}>
               {order.status === 'FULFILLED' ? 'Fulfilled' : 'Backorder'}
-            </span>
-          ) : (
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border bg-violet-500/15 text-violet-300 border-violet-500/30">
-              Awaiting split
-            </span>
-          )}
-        </div>
-        <p className="text-xs text-zinc-400 mt-1 truncate">{nameOf(q)}</p>
-        <p className="text-xs text-zinc-500 mt-0.5">
-          {fmt(q.grandTotal)}
-          {order && ` · ${order.shipmentCount} shipment${order.shipmentCount === 1 ? '' : 's'} · ${fmt(order.totalShippingCost)}`}
-        </p>
-      </button>
-    );
-  };
+ </span>
+ ) : (
+ <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border bg-cream text-ink border-hairline">
+ Awaiting split
+ </span>
+ )}
+ </div>
+ <p className="text-xs text-subtle mt-1 truncate">{nameOf(q)}</p>
+ <p className="text-xs text-subtle mt-0.5">
+ {fmt(q.grandTotal)}
+ {order && ` · ${order.shipmentCount} shipment${order.shipmentCount === 1 ? '' : 's'} · ${fmt(order.totalShippingCost)}`}
+ </p>
+ </button>
+ );
+ };
 
-  const section = (title: string, icon: React.ReactNode, items: ApprovedQuotation[]) =>
-    items.length > 0 && (
-      <div>
-        <p className="text-[11px] text-zinc-500 font-semibold uppercase tracking-wider mb-2 flex items-center gap-1.5">
-          {icon} {title} ({items.length})
-        </p>
-        <div className="space-y-2">{items.map(card)}</div>
-      </div>
-    );
+ const section = (title: string, icon: React.ReactNode, items: ApprovedQuotation[]) =>
+ items.length > 0 && (
+ <div>
+ <p className="text-[11px] text-subtle font-semibold uppercase tracking-wider mb-2 flex items-center gap-1.5">
+ {icon} {title} ({items.length})
+ </p>
+ <div className="space-y-2">{items.map(card)}</div>
+ </div>
+ );
 
-  return (
-    <AppShell>
-      <div className="p-8">
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-2xl font-bold text-white">Fulfillment</h1>
-            <p className="text-zinc-400 text-sm mt-1">
-              Warehouse splits for approved deals.{' '}
-              <span className="text-violet-400 font-medium">{pending.length} awaiting a decision</span>
-              {backordered.length > 0 && (
-                <>, <span className="text-amber-400 font-medium">{backordered.length} on backorder</span></>
-              )}
-            </p>
-          </div>
-          <button
-            onClick={refresh}
-            disabled={refreshing}
-            className="flex items-center gap-2 px-4 py-2 bg-zinc-800 border border-zinc-700 text-zinc-300 hover:text-white rounded-lg text-sm transition-all"
-          >
-            <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
-            Refresh
-          </button>
-        </div>
+ return (
+ <AppShell>
+ <div className="p-8">
+ <div className="flex items-center justify-between mb-8">
+ <div>
+ <h1 className="text-2xl font-bold text-ink">Fulfillment</h1>
+ <p className="text-subtle text-sm mt-1">
+ Warehouse splits for approved deals.{' '}
+ <span className="text-link font-medium">{pending.length} awaiting a decision</span>
+ {backordered.length > 0 && (
+ <>, <span className="text-warning font-medium">{backordered.length} on backorder</span></>
+ )}
+ </p>
+ </div>
+ <button
+ onClick={refresh}
+ disabled={refreshing}
+ className="flex items-center gap-2 px-4 py-2 bg-soft border border-hairline text-body hover:text-ink rounded-lg text-sm transition-all"
+ >
+ <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
+ Refresh
+ </button>
+ </div>
 
-        {loading ? (
-          <div className="flex items-center justify-center py-32 text-zinc-500">
-            <RefreshCw size={20} className="animate-spin mr-3" />
-            Loading approved deals…
-          </div>
-        ) : quotations.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-32 text-center">
-            <div className="w-16 h-16 rounded-2xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center mb-4">
-              <Truck size={28} className="text-violet-400" />
+ {loading ? (
+ <div className="flex items-center justify-center py-32 text-subtle">
+ <RefreshCw size={20} className="animate-spin mr-3" />
+ Loading approved deals…
+ </div>
+ ) : quotations.length === 0 ? (
+ <div className="flex flex-col items-center justify-center py-32 text-center">
+ <div className="w-16 h-16 rounded-lg bg-cream border border-hairline flex items-center justify-center mb-4">
+ <Truck size={28} className="text-link" />
+ </div>
+ <h2 className="text-lg font-semibold text-ink">Nothing to fulfil yet</h2>
+ <p className="text-subtle text-sm mt-2 max-w-sm">
+ A quotation appears here as soon as it reaches Approved.
+ </p>
+ </div>
+ ) : (
+ <div className="grid grid-cols-[300px_1fr] gap-6 items-start">
+ <div className="space-y-5">
+ {section('Awaiting split', <Truck size={11} />, pending)}
+              {section('On backorder', <AlertTriangle size={11} className="text-warning" />, backordered)}
+ {section('Fulfilled', <PackageCheck size={11} className="text-success" />, done)}
             </div>
-            <h2 className="text-lg font-semibold text-zinc-200">Nothing to fulfil yet</h2>
-            <p className="text-zinc-500 text-sm mt-2 max-w-sm">
-              A quotation appears here as soon as it reaches Approved.
-            </p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-[300px_1fr] gap-6 items-start">
-            <div className="space-y-5">
-              {section('Awaiting split', <Truck size={11} />, pending)}
-              {section('On backorder', <AlertTriangle size={11} className="text-amber-400" />, backordered)}
-              {section('Fulfilled', <PackageCheck size={11} className="text-emerald-400" />, done)}
-            </div>
 
-            <div className="rounded-2xl border border-zinc-800 bg-zinc-900/30 p-6">
+            <div className="rounded-lg border border-hairline bg-soft p-6">
               {selectedId ? (
                 <FulfillmentPanel key={selectedId} quotationId={selectedId} canConfirm onChanged={load} />
               ) : (
-                <p className="text-sm text-zinc-500 text-center py-20">Select a quotation to plan its fulfillment.</p>
+                <p className="text-sm text-subtle text-center py-20">Select a quotation to plan its fulfillment.</p>
               )}
             </div>
           </div>

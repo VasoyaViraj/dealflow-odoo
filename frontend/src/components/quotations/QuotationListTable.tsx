@@ -20,17 +20,17 @@ interface Props {
 
 export function statusColor(status: string) {
   const map: Record<string, string> = {
-    DRAFT: 'bg-zinc-500/20 text-zinc-300 border-zinc-500/30',
-    SUBMITTED: 'bg-blue-500/20 text-blue-300 border-blue-500/30',
-    PENDING_MANAGER: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
-    PENDING_FINANCE: 'bg-orange-500/20 text-orange-300 border-orange-500/30',
-    APPROVED: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
-    REJECTED: 'bg-red-500/20 text-red-300 border-red-500/30',
-    REVISION_REQUESTED: 'bg-purple-500/20 text-purple-300 border-purple-500/30',
-    CANCELLED: 'bg-zinc-700/50 text-zinc-400 border-zinc-600/50',
-    EXPIRED: 'bg-zinc-700/50 text-zinc-400 border-zinc-600/50',
+    DRAFT: 'bg-line-strong text-body border-hairline',
+    SUBMITTED: 'bg-link/10 text-link border-link/30',
+    PENDING_MANAGER: 'bg-mustard/20 text-warning border-mustard/60',
+    PENDING_FINANCE: 'bg-coral/8 text-coral border-coral/30',
+    APPROVED: 'bg-success/10 text-success border-success/30',
+    REJECTED: 'bg-coral/8 text-coral border-coral/30',
+    REVISION_REQUESTED: 'bg-cream text-ink border-hairline',
+    CANCELLED: 'bg-strong text-subtle border-hairline',
+    EXPIRED: 'bg-strong text-subtle border-hairline',
   };
-  return map[status] || 'bg-zinc-500/20 text-zinc-300 border-zinc-500/30';
+  return map[status] || 'bg-line-strong text-body border-hairline';
 }
 
 export function formatCurrency(amount: number | string) {
@@ -41,20 +41,20 @@ export function formatCurrency(amount: number | string) {
 export default function QuotationListTable({ quotations, basePath, hideCustomer = false }: Props) {
   if (quotations.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 text-center bg-zinc-900 border border-zinc-800 rounded-xl">
-        <div className="w-12 h-12 rounded-xl bg-zinc-800 flex items-center justify-center mb-3">
-          <FileText size={20} className="text-zinc-500" />
+      <div className="flex flex-col items-center justify-center py-16 text-center bg-canvas border border-hairline rounded-md">
+        <div className="w-12 h-12 rounded-md bg-soft flex items-center justify-center mb-3">
+          <FileText size={20} className="text-subtle" />
         </div>
-        <p className="text-zinc-400 text-sm">No quotations found.</p>
+        <p className="text-subtle text-sm">No quotations found.</p>
       </div>
     );
   }
 
   return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
+    <div className="bg-canvas border border-hairline rounded-md overflow-hidden">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-zinc-800 text-zinc-500 text-left bg-zinc-950/50">
+          <tr className="border-b border-hairline text-subtle text-left bg-soft">
             <th className="px-5 py-3 font-medium">Quotation #</th>
             <th className="px-5 py-3 font-medium">Status</th>
             {!hideCustomer && <th className="px-5 py-3 font-medium">Customer</th>}
@@ -66,9 +66,9 @@ export default function QuotationListTable({ quotations, basePath, hideCustomer 
           {quotations.map((q) => {
             const customerName = q.customer?.name || q.customerName || 'Unknown Customer';
             return (
-              <tr key={q.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/30 transition group">
-                <td className="px-5 py-3 font-medium text-zinc-100">
-                  <Link to={`${basePath}/${q.id}`} className="text-violet-400 hover:text-violet-300">
+              <tr key={q.id} className="border-b border-hairline hover:bg-soft transition group">
+                <td className="px-5 py-3 font-medium text-ink">
+                  <Link to={`${basePath}/${q.id}`} className="text-link hover:text-link-active">
                     {q.quotationNumber || 'Pending'}
                   </Link>
                 </td>
@@ -78,12 +78,12 @@ export default function QuotationListTable({ quotations, basePath, hideCustomer 
                   </span>
                 </td>
                 {!hideCustomer && (
-                  <td className="px-5 py-3 text-zinc-300">{customerName}</td>
+                  <td className="px-5 py-3 text-body">{customerName}</td>
                 )}
-                <td className="px-5 py-3 text-zinc-200 text-right font-medium">
+                <td className="px-5 py-3 text-ink text-right font-medium">
                   {formatCurrency(q.grandTotal)}
                 </td>
-                <td className="px-5 py-3 text-zinc-400 text-right">
+                <td className="px-5 py-3 text-subtle text-right">
                   {new Date(q.updatedAt).toLocaleDateString()}
                 </td>
               </tr>

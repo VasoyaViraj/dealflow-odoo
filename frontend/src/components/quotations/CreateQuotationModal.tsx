@@ -35,24 +35,24 @@ export function CreateQuotationModal({
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40" onClick={onClose} />
+      <div className="fixed inset-0 bg-ink/40 backdrop-blur-sm z-40" onClick={onClose} />
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 w-full max-w-md shadow-2xl">
+        <div className="bg-canvas border border-hairline rounded-lg p-6 w-full max-w-md shadow-lg">
           <div className="flex items-center justify-between mb-5">
-            <h2 className="text-lg font-bold text-white">New Quotation</h2>
-            <button onClick={onClose} className="text-zinc-500 hover:text-zinc-300 transition"><X size={18} /></button>
+            <h2 className="text-lg font-bold text-ink">New Quotation</h2>
+            <button onClick={onClose} className="text-subtle hover:text-body transition"><X size={18} /></button>
           </div>
 
           <div className="space-y-4">
             <div>
-              <label className="block text-sm text-zinc-400 mb-1.5 font-medium">Customer *</label>
+              <label className="block text-sm text-subtle mb-1.5 font-medium">Customer *</label>
               {fetching ? (
-                <div className="bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-zinc-500">Loading customers…</div>
+                <div className="bg-soft border border-hairline rounded-lg px-3 py-2.5 text-sm text-subtle">Loading customers…</div>
               ) : (
                 <select
                   value={customerId}
                   onChange={e => setCustomerId(e.target.value)}
-                  className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-zinc-100 focus:outline-none focus:border-violet-500 transition"
+                  className="w-full bg-soft border border-hairline rounded-lg px-3 py-2.5 text-sm text-ink focus:outline-none focus:border-ink transition"
                 >
                   <option value="">— Select a customer —</option>
                   {customers.map(c => (
@@ -62,24 +62,24 @@ export function CreateQuotationModal({
               )}
             </div>
             <div>
-              <label className="block text-sm text-zinc-400 mb-1.5 font-medium">Notes <span className="text-zinc-600">(optional)</span></label>
+              <label className="block text-sm text-subtle mb-1.5 font-medium">Notes <span className="text-line-strong">(optional)</span></label>
               <textarea
                 value={notes}
                 onChange={e => setNotes(e.target.value)}
                 placeholder="Internal notes for this quotation…"
                 rows={3}
-                className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-violet-500 resize-none transition"
+                className="w-full bg-soft border border-hairline rounded-lg px-3 py-2.5 text-sm text-ink placeholder-line-strong focus:outline-none focus:border-ink resize-none transition"
               />
             </div>
           </div>
 
           <div className="flex gap-3 mt-6">
-            <button onClick={onClose} className="flex-1 py-2.5 rounded-lg text-sm text-zinc-400 hover:text-zinc-200 border border-zinc-700 hover:border-zinc-600 transition">Cancel</button>
+            <button onClick={onClose} className="flex-1 py-2.5 rounded-lg text-sm text-subtle hover:text-ink border border-hairline hover:border-line-strong transition">Cancel</button>
             <button
               id="create-quotation-submit"
               onClick={create}
               disabled={loading || !customerId}
-              className="flex-1 py-2.5 rounded-lg text-sm font-semibold bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white transition disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 py-2.5 rounded-lg text-sm font-semibold bg-ink text-white transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? 'Creating…' : 'Create Quotation'}
             </button>

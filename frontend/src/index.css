@@ -1,13 +1,76 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
-@import "@fontsource-variable/geist";
+@import "@fontsource-variable/inter";
 
-@custom-variant dark (&:is(.dark *));
+/* ============================================================================
+   DealFlow360 design system
+   Tokens transcribed from doc/design.md (editorial workflow-software system:
+   white canvas, dark-ink type, signature colour cards for brand voltage).
+   Haas Grotesk / Haas Groot Disp are licensed; per the design doc's font
+   substitution note we run Inter Variable in their place.
+   ========================================================================= */
 
+@theme {
+    --font-sans: 'Inter Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI',
+        Roboto, 'Helvetica Neue', sans-serif;
+    --font-display: 'Inter Variable', -apple-system, BlinkMacSystemFont,
+        'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+
+    /* -- surfaces ------------------------------------------------------- */
+    --color-canvas: #ffffff;
+    --color-soft: #f8fafc;
+    --color-strong: #e0e2e6;
+    --color-dark: #181d26;
+    --color-dark-elev: #1d1f25;
+
+    /* -- ink ------------------------------------------------------------ */
+    --color-ink: #181d26;
+    --color-ink-active: #0d1218;
+    --color-body: #333840;
+    --color-subtle: #41454d;
+
+    /* -- lines ---------------------------------------------------------- */
+    --color-hairline: #dddddd;
+    --color-line-strong: #9297a0;
+
+    /* -- signature card surfaces ---------------------------------------- */
+    --color-coral: #aa2d00;
+    --color-forest: #0a2e0e;
+    --color-cream: #f5e9d4;
+    --color-peach: #fcab79;
+    --color-mint: #a8d8c4;
+    --color-yellow: #f4d35e;
+    --color-mustard: #d9a441;
+
+    /* -- semantic ------------------------------------------------------- */
+    --color-link: #1b61c9;
+    --color-link-active: #1a3866;
+    --color-info: #254fad;
+    --color-info-border: #458fff;
+    --color-success: #006400;
+    --color-success-border: #39bf45;
+    /* The doc has no functional warning/danger role — warning is the dark end
+       of signature-mustard so it clears AA on canvas, danger reuses coral. */
+    --color-warning: #8a5a00;
+    --color-danger: #aa2d00;
+
+    /* -- radius (design.md "Border Radius Scale") ----------------------- */
+    --radius-xs: 2px;
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 12px;
+    --radius-xl: 16px;
+    --radius-2xl: 20px;
+
+    /* -- the 96px vertical rhythm constant ------------------------------ */
+    --spacing-section: 96px;
+}
+
+/* shadcn / base-ui variable bridge — retuned from the dark preset to the
+   editorial light palette so unmigrated primitives inherit the new system. */
 @theme inline {
-    --font-heading: var(--font-sans);
-    --font-sans: 'Geist Variable', sans-serif;
+    --font-heading: var(--font-display);
     --color-sidebar-ring: var(--sidebar-ring);
     --color-sidebar-border: var(--sidebar-border);
     --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -16,11 +79,6 @@
     --color-sidebar-primary: var(--sidebar-primary);
     --color-sidebar-foreground: var(--sidebar-foreground);
     --color-sidebar: var(--sidebar);
-    --color-chart-5: var(--chart-5);
-    --color-chart-4: var(--chart-4);
-    --color-chart-3: var(--chart-3);
-    --color-chart-2: var(--chart-2);
-    --color-chart-1: var(--chart-1);
     --color-ring: var(--ring);
     --color-input: var(--input);
     --color-border: var(--border);
@@ -39,92 +97,416 @@
     --color-card: var(--card);
     --color-foreground: var(--foreground);
     --color-background: var(--background);
-    --radius-sm: calc(var(--radius) * 0.6);
-    --radius-md: calc(var(--radius) * 0.8);
-    --radius-lg: var(--radius);
-    --radius-xl: calc(var(--radius) * 1.4);
-    --radius-2xl: calc(var(--radius) * 1.8);
-    --radius-3xl: calc(var(--radius) * 2.2);
-    --radius-4xl: calc(var(--radius) * 2.6);
 }
 
 :root {
-    --background: oklch(1 0 0);
-    --foreground: oklch(0.145 0 0);
-    --card: oklch(1 0 0);
-    --card-foreground: oklch(0.145 0 0);
-    --popover: oklch(1 0 0);
-    --popover-foreground: oklch(0.145 0 0);
-    --primary: oklch(0.205 0 0);
-    --primary-foreground: oklch(0.985 0 0);
-    --secondary: oklch(0.97 0 0);
-    --secondary-foreground: oklch(0.205 0 0);
-    --muted: oklch(0.97 0 0);
-    --muted-foreground: oklch(0.556 0 0);
-    --accent: oklch(0.97 0 0);
-    --accent-foreground: oklch(0.205 0 0);
-    --destructive: oklch(0.577 0.245 27.325);
-    --border: oklch(0.922 0 0);
-    --input: oklch(0.922 0 0);
-    --ring: oklch(0.708 0 0);
-    --chart-1: oklch(0.87 0 0);
-    --chart-2: oklch(0.556 0 0);
-    --chart-3: oklch(0.439 0 0);
-    --chart-4: oklch(0.371 0 0);
-    --chart-5: oklch(0.269 0 0);
-    --radius: 0.625rem;
-    --sidebar: oklch(0.985 0 0);
-    --sidebar-foreground: oklch(0.145 0 0);
-    --sidebar-primary: oklch(0.205 0 0);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.97 0 0);
-    --sidebar-accent-foreground: oklch(0.205 0 0);
-    --sidebar-border: oklch(0.922 0 0);
-    --sidebar-ring: oklch(0.708 0 0);
-}
-
-.dark {
-    --background: oklch(0.145 0 0);
-    --foreground: oklch(0.985 0 0);
-    --card: oklch(0.205 0 0);
-    --card-foreground: oklch(0.985 0 0);
-    --popover: oklch(0.205 0 0);
-    --popover-foreground: oklch(0.985 0 0);
-    --primary: oklch(0.922 0 0);
-    --primary-foreground: oklch(0.205 0 0);
-    --secondary: oklch(0.269 0 0);
-    --secondary-foreground: oklch(0.985 0 0);
-    --muted: oklch(0.269 0 0);
-    --muted-foreground: oklch(0.708 0 0);
-    --accent: oklch(0.269 0 0);
-    --accent-foreground: oklch(0.985 0 0);
-    --destructive: oklch(0.704 0.191 22.216);
-    --border: oklch(1 0 0 / 10%);
-    --input: oklch(1 0 0 / 15%);
-    --ring: oklch(0.556 0 0);
-    --chart-1: oklch(0.87 0 0);
-    --chart-2: oklch(0.556 0 0);
-    --chart-3: oklch(0.439 0 0);
-    --chart-4: oklch(0.371 0 0);
-    --chart-5: oklch(0.269 0 0);
-    --sidebar: oklch(0.205 0 0);
-    --sidebar-foreground: oklch(0.985 0 0);
-    --sidebar-primary: oklch(0.488 0.243 264.376);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.269 0 0);
-    --sidebar-accent-foreground: oklch(0.985 0 0);
-    --sidebar-border: oklch(1 0 0 / 10%);
-    --sidebar-ring: oklch(0.556 0 0);
+    --background: #ffffff;
+    --foreground: #181d26;
+    --card: #ffffff;
+    --card-foreground: #181d26;
+    --popover: #ffffff;
+    --popover-foreground: #181d26;
+    --primary: #181d26;
+    --primary-foreground: #ffffff;
+    --secondary: #f8fafc;
+    --secondary-foreground: #181d26;
+    --muted: #f8fafc;
+    --muted-foreground: #41454d;
+    --accent: #f8fafc;
+    --accent-foreground: #181d26;
+    --destructive: #aa2d00;
+    --border: #dddddd;
+    --input: #dddddd;
+    --ring: #458fff;
+    --radius: 12px;
+    --sidebar: #ffffff;
+    --sidebar-foreground: #181d26;
+    --sidebar-primary: #181d26;
+    --sidebar-primary-foreground: #ffffff;
+    --sidebar-accent: #f8fafc;
+    --sidebar-accent-foreground: #181d26;
+    --sidebar-border: #dddddd;
+    --sidebar-ring: #458fff;
 }
 
 @layer base {
-  * {
-    @apply border-border outline-ring/50;
+    * {
+        border-color: var(--color-hairline);
     }
-  body {
-    @apply bg-background text-foreground;
+    html {
+        font-family: var(--font-sans);
+        -webkit-font-smoothing: antialiased;
+        text-rendering: optimizeLegibility;
     }
-  html {
-    @apply font-sans;
+    body {
+        background-color: var(--color-canvas);
+        color: var(--color-body);
     }
+    ::selection {
+        background-color: var(--color-cream);
+        color: var(--color-ink);
+    }
+}
+
+/* ============================================================================
+   Typography roles — design.md "Hierarchy" table.
+   Display sizes stay at weight 400/500 on purpose: emphasis comes from size
+   and surface contrast, never from weight.
+   ========================================================================= */
+
+@utility type-display-xl {
+    font-family: var(--font-display);
+    font-size: 48px;
+    font-weight: 500;
+    line-height: 1.1;
+    letter-spacing: -0.01em;
+    color: var(--color-ink);
+}
+@utility type-display-lg {
+    font-family: var(--font-display);
+    font-size: 40px;
+    font-weight: 400;
+    line-height: 1.2;
+    color: var(--color-ink);
+}
+@utility type-display-md {
+    font-family: var(--font-display);
+    font-size: 32px;
+    font-weight: 400;
+    line-height: 1.2;
+    color: var(--color-ink);
+}
+@utility type-title-lg {
+    font-size: 24px;
+    font-weight: 400;
+    line-height: 1.35;
+    letter-spacing: 0.12px;
+    color: var(--color-ink);
+}
+@utility type-title-md {
+    font-family: var(--font-display);
+    font-size: 20px;
+    font-weight: 400;
+    line-height: 1.5;
+    color: var(--color-ink);
+}
+@utility type-title-sm {
+    font-size: 18px;
+    font-weight: 500;
+    line-height: 1.4;
+    color: var(--color-ink);
+}
+@utility type-label-md {
+    font-size: 16px;
+    font-weight: 500;
+    line-height: 1.4;
+    color: var(--color-ink);
+}
+@utility type-body-md {
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 1.55;
+    color: var(--color-body);
+}
+@utility type-caption {
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1.35;
+    letter-spacing: 0.16px;
+    color: var(--color-subtle);
+}
+@utility type-eyebrow {
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.2;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--color-subtle);
+}
+
+/* ============================================================================
+   Component classes. These carry the doc's Default and Active/Pressed states.
+   Hover is deliberately minimal — the system documents Default and Active only,
+   so hover never changes hue, it only shifts one step of the same ramp.
+   ========================================================================= */
+
+@layer components {
+    /* -- buttons ---------------------------------------------------------- */
+    .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        white-space: nowrap;
+        border: 1px solid transparent;
+        border-radius: var(--radius-lg);
+        font-size: 14px;
+        font-weight: 500;
+        line-height: 1.4;
+        padding: 10px 18px;
+        cursor: pointer;
+        transition: background-color 120ms ease, border-color 120ms ease,
+            color 120ms ease;
+    }
+    .btn:focus-visible {
+        outline: 2px solid var(--color-info-border);
+        outline-offset: 2px;
+    }
+    .btn:disabled,
+    .btn[aria-disabled='true'] {
+        pointer-events: none;
+        opacity: 0.45;
+    }
+    .btn svg {
+        flex-shrink: 0;
+    }
+
+    .btn-lg {
+        padding: 16px 24px;
+        font-size: 16px;
+    }
+    .btn-sm {
+        padding: 7px 12px;
+        font-size: 13px;
+        border-radius: var(--radius-md);
+    }
+
+    /* The signature primary CTA: near-black, never link-blue. */
+    .btn-primary {
+        background-color: var(--color-ink);
+        color: #ffffff;
+    }
+    .btn-primary:hover {
+        background-color: var(--color-ink-active);
+    }
+    .btn-primary:active {
+        background-color: var(--color-ink-active);
+    }
+
+    /* The natural pair with .btn-primary: white with a hairline outline. */
+    .btn-secondary {
+        background-color: var(--color-canvas);
+        color: var(--color-ink);
+        border-color: var(--color-hairline);
+    }
+    .btn-secondary:hover {
+        background-color: var(--color-soft);
+        border-color: var(--color-line-strong);
+    }
+    .btn-secondary:active {
+        background-color: var(--color-strong);
+    }
+
+    .btn-ghost {
+        background-color: transparent;
+        color: var(--color-body);
+    }
+    .btn-ghost:hover {
+        background-color: var(--color-soft);
+        color: var(--color-ink);
+    }
+
+    .btn-danger {
+        background-color: var(--color-coral);
+        color: #ffffff;
+    }
+    .btn-danger:hover {
+        background-color: #8f2600;
+    }
+
+    .btn-quiet-danger {
+        background-color: var(--color-canvas);
+        color: var(--color-coral);
+        border-color: color-mix(in srgb, var(--color-coral) 30%, transparent);
+    }
+    .btn-quiet-danger:hover {
+        background-color: color-mix(in srgb, var(--color-coral) 6%, #ffffff);
+    }
+
+    .btn-success {
+        background-color: var(--color-success);
+        color: #ffffff;
+    }
+    .btn-success:hover {
+        background-color: #004f00;
+    }
+
+    /* Pricing sub-system only — pill radius appears nowhere else. */
+    .btn-pill {
+        border-radius: 9999px;
+        padding: 12px 24px;
+        font-size: 16px;
+    }
+
+    .btn-icon {
+        width: 40px;
+        height: 40px;
+        padding: 0;
+        border-radius: 9999px;
+        background-color: var(--color-canvas);
+        border-color: var(--color-hairline);
+        color: var(--color-ink);
+    }
+    .btn-icon:hover {
+        background-color: var(--color-soft);
+    }
+
+    /* -- surfaces --------------------------------------------------------- */
+    /* Elevation philosophy is colour-block first, shadow second. */
+    .card {
+        background-color: var(--color-canvas);
+        border: 1px solid var(--color-hairline);
+        border-radius: var(--radius-md);
+    }
+    .card-soft {
+        background-color: var(--color-soft);
+        border: 1px solid var(--color-hairline);
+        border-radius: var(--radius-md);
+    }
+    .card-dark {
+        background-color: var(--color-dark);
+        color: #ffffff;
+        border-radius: var(--radius-lg);
+    }
+    .card-coral {
+        background-color: var(--color-coral);
+        color: #ffffff;
+        border-radius: var(--radius-lg);
+    }
+    .card-forest {
+        background-color: var(--color-forest);
+        color: #ffffff;
+        border-radius: var(--radius-lg);
+    }
+    .card-cream {
+        background-color: var(--color-cream);
+        color: var(--color-ink);
+        border-radius: var(--radius-md);
+    }
+
+    /* -- inputs ----------------------------------------------------------- */
+    .input {
+        width: 100%;
+        height: 44px;
+        padding: 12px 16px;
+        background-color: var(--color-canvas);
+        color: var(--color-ink);
+        border: 1px solid var(--color-hairline);
+        border-radius: var(--radius-sm);
+        font-size: 14px;
+        line-height: 1.25;
+        transition: border-color 120ms ease, box-shadow 120ms ease;
+    }
+    .input::placeholder {
+        color: var(--color-line-strong);
+    }
+    .input:focus {
+        outline: none;
+        border-color: var(--color-info-border);
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-info-border) 18%, transparent);
+    }
+    .input:disabled {
+        background-color: var(--color-soft);
+        color: var(--color-subtle);
+    }
+    textarea.input,
+    select.input[size],
+    .input-auto {
+        height: auto;
+    }
+
+    .field-label {
+        display: block;
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--color-subtle);
+        margin-bottom: 6px;
+    }
+
+    /* -- chrome ----------------------------------------------------------- */
+    .hairline-b {
+        border-bottom: 1px solid var(--color-hairline);
+    }
+    .hairline-t {
+        border-top: 1px solid var(--color-hairline);
+    }
+
+    .page-container {
+        width: 100%;
+        max-width: 1280px;
+        margin-inline: auto;
+        padding-inline: 24px;
+    }
+
+    /* Data tables: hairline dividers, no zebra fill, no shadow. */
+    .data-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        font-size: 14px;
+    }
+    .data-table thead th {
+        text-align: left;
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.07em;
+        text-transform: uppercase;
+        color: var(--color-subtle);
+        padding: 12px 16px;
+        border-bottom: 1px solid var(--color-hairline);
+        background-color: var(--color-soft);
+        white-space: nowrap;
+    }
+    .data-table tbody td {
+        padding: 14px 16px;
+        border-bottom: 1px solid var(--color-hairline);
+        color: var(--color-body);
+        vertical-align: middle;
+    }
+    .data-table tbody tr:last-child td {
+        border-bottom: none;
+    }
+    .data-table tbody tr[data-clickable]:hover {
+        background-color: var(--color-soft);
+        cursor: pointer;
+    }
+}
+
+/* Landing-page only: the marquee rail under the hero. */
+@keyframes df-marquee {
+    from {
+        transform: translateX(0);
+    }
+    to {
+        transform: translateX(-50%);
+    }
+}
+.df-marquee-track {
+    display: flex;
+    width: max-content;
+    animation: df-marquee 38s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+    .df-marquee-track {
+        animation: none;
+    }
+}
+
+/* Scrollbars, tuned to the hairline system rather than the browser default. */
+::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+::-webkit-scrollbar-thumb {
+    background: var(--color-strong);
+    border-radius: 9999px;
+    border: 3px solid var(--color-canvas);
+}
+::-webkit-scrollbar-thumb:hover {
+    background: var(--color-line-strong);
 }

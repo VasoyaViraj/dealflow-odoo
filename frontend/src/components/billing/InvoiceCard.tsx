@@ -27,11 +27,11 @@ const STATUS_CONFIG: Record<Invoice['status'], {
   cls: string;
   dot: string;
 }> = {
-  DRAFT:     { label: 'Draft',     icon: Clock,          cls: 'text-zinc-400  bg-zinc-800   border-zinc-700',  dot: 'bg-zinc-500'   },
-  ISSUED:    { label: 'Issued',    icon: FileText,       cls: 'text-sky-300   bg-sky-500/10  border-sky-500/30', dot: 'bg-sky-400'    },
-  PAID:      { label: 'Paid',      icon: CheckCircle,    cls: 'text-emerald-300 bg-emerald-500/10 border-emerald-500/30', dot: 'bg-emerald-400' },
-  CANCELLED: { label: 'Cancelled', icon: XCircle,        cls: 'text-red-300   bg-red-500/10   border-red-500/30',   dot: 'bg-red-400'    },
-  OVERDUE:   { label: 'Overdue',   icon: AlertTriangle,  cls: 'text-amber-300 bg-amber-500/10 border-amber-500/30', dot: 'bg-amber-400'  },
+  DRAFT:     { label: 'Draft',     icon: Clock,          cls: 'text-subtle bg-soft border-hairline',  dot: 'bg-line-strong'   },
+  ISSUED:    { label: 'Issued',    icon: FileText,       cls: 'text-link bg-link/10 border-link/30', dot: 'bg-link'    },
+  PAID:      { label: 'Paid',      icon: CheckCircle,    cls: 'text-success bg-success/10 border-success/30', dot: 'bg-success' },
+  CANCELLED: { label: 'Cancelled', icon: XCircle,        cls: 'text-coral bg-coral/8 border-coral/30',   dot: 'bg-coral'    },
+  OVERDUE:   { label: 'Overdue',   icon: AlertTriangle,  cls: 'text-warning bg-mustard/20 border-mustard/60', dot: 'bg-mustard'  },
 };
 
 function StatusPill({ status }: { status: Invoice['status'] }) {
@@ -50,10 +50,10 @@ function StatusPill({ status }: { status: Invoice['status'] }) {
 
 function LineRows({ lines }: { lines: InvoiceLineSnapshot[] }) {
   return (
-    <div className="mt-4 border border-zinc-800 rounded-xl overflow-hidden">
+    <div className="mt-4 border border-hairline rounded-md overflow-hidden">
       <table className="w-full text-xs">
         <thead>
-          <tr className="border-b border-zinc-800 bg-zinc-900/60 text-zinc-500">
+          <tr className="border-b border-hairline bg-canvas text-subtle">
             <th className="px-4 py-2.5 text-left font-medium">Product</th>
             <th className="px-4 py-2.5 text-center font-medium">Qty</th>
             <th className="px-4 py-2.5 text-right font-medium">Unit</th>
@@ -63,19 +63,19 @@ function LineRows({ lines }: { lines: InvoiceLineSnapshot[] }) {
         </thead>
         <tbody>
           {lines.map((l, i) => (
-            <tr key={i} className="border-b border-zinc-800/50 hover:bg-zinc-800/20 transition-colors">
+            <tr key={i} className="border-b border-hairline hover:bg-soft transition-colors">
               <td className="px-4 py-2.5">
-                <p className="font-medium text-zinc-200">{l.productName}</p>
-                {l.productSku && <p className="text-zinc-600 font-mono">{l.productSku}</p>}
+                <p className="font-medium text-ink">{l.productName}</p>
+                {l.productSku && <p className="text-line-strong font-mono">{l.productSku}</p>}
               </td>
-              <td className="px-4 py-2.5 text-center text-zinc-400">{l.quantity}</td>
-              <td className="px-4 py-2.5 text-right text-zinc-400">{fmt(l.unitPrice)}</td>
+              <td className="px-4 py-2.5 text-center text-subtle">{l.quantity}</td>
+              <td className="px-4 py-2.5 text-right text-subtle">{fmt(l.unitPrice)}</td>
               <td className="px-4 py-2.5 text-right">
                 {parseFloat(l.discountPercent) > 0
-                  ? <span className="text-emerald-400">{parseFloat(l.discountPercent).toFixed(1)}%</span>
-                  : <span className="text-zinc-600">—</span>}
+                  ? <span className="text-success">{parseFloat(l.discountPercent).toFixed(1)}%</span>
+                  : <span className="text-line-strong">—</span>}
               </td>
-              <td className="px-4 py-2.5 text-right font-semibold text-zinc-100">{fmt(l.lineTotal)}</td>
+              <td className="px-4 py-2.5 text-right font-semibold text-ink">{fmt(l.lineTotal)}</td>
             </tr>
           ))}
         </tbody>
@@ -97,23 +97,23 @@ export function InvoiceCard({ invoice, canPay, onPay, paying }: InvoiceCardProps
   const [expanded, setExpanded] = useState(false);
 
   return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
+    <div className="bg-canvas border border-hairline rounded-lg overflow-hidden">
       {/* Header stripe */}
-      <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-800">
+      <div className="flex items-center justify-between px-5 py-4 border-b border-hairline">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center">
-            <FileText size={16} className="text-sky-400" />
+          <div className="w-9 h-9 rounded-md bg-link/10 border border-link/30 flex items-center justify-center">
+            <FileText size={16} className="text-link" />
           </div>
           <div>
-            <p className="text-xs text-zinc-500 font-mono">{invoice.invoiceNumber}</p>
-            <p className="text-sm font-semibold text-white">One-time Invoice</p>
+            <p className="text-xs text-subtle font-mono">{invoice.invoiceNumber}</p>
+            <p className="text-sm font-semibold text-ink">One-time Invoice</p>
           </div>
         </div>
         <div className="flex items-center gap-3">
           <StatusPill status={invoice.status} />
           <button
             onClick={() => setExpanded(e => !e)}
-            className="text-zinc-500 hover:text-zinc-200 transition-colors p-1"
+            className="text-subtle hover:text-ink transition-colors p-1"
             aria-label="Toggle invoice details"
           >
             {expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
@@ -122,15 +122,15 @@ export function InvoiceCard({ invoice, canPay, onPay, paying }: InvoiceCardProps
       </div>
 
       {/* Amounts row */}
-      <div className="grid grid-cols-3 gap-0 divide-x divide-zinc-800">
+      <div className="grid grid-cols-3 gap-0 divide-x divide-hairline">
         {[
           { label: 'Subtotal', value: fmt(invoice.subtotal) },
           { label: 'Tax (GST)', value: fmt(invoice.taxAmount) },
           { label: 'Grand Total', value: fmt(invoice.grandTotal), highlight: true },
         ].map(s => (
           <div key={s.label} className="px-5 py-4">
-            <p className="text-xs text-zinc-500">{s.label}</p>
-            <p className={`text-base font-bold mt-0.5 ${s.highlight ? 'text-white' : 'text-zinc-300'}`}>
+            <p className="text-xs text-subtle">{s.label}</p>
+            <p className={`text-base font-bold mt-0.5 ${s.highlight ? 'text-ink' : 'text-body'}`}>
               {s.value}
             </p>
           </div>
@@ -138,14 +138,14 @@ export function InvoiceCard({ invoice, canPay, onPay, paying }: InvoiceCardProps
       </div>
 
       {/* Due date + pay button */}
-      <div className="flex items-center justify-between px-5 py-3 border-t border-zinc-800 bg-zinc-900/50">
-        <div className="flex items-center gap-4 text-xs text-zinc-500">
-          <span>Due: <span className="text-zinc-300 font-medium">{fmtDate(invoice.dueDate)}</span></span>
+      <div className="flex items-center justify-between px-5 py-3 border-t border-hairline bg-canvas">
+        <div className="flex items-center gap-4 text-xs text-subtle">
+          <span>Due: <span className="text-body font-medium">{fmtDate(invoice.dueDate)}</span></span>
           {invoice.paidAt && (
-            <span className="text-emerald-400">Paid: {fmtDate(invoice.paidAt)}</span>
+            <span className="text-success">Paid: {fmtDate(invoice.paidAt)}</span>
           )}
           {parseFloat(invoice.discountAmount) > 0 && (
-            <span className="text-emerald-400">Discount: −{fmt(invoice.discountAmount)}</span>
+            <span className="text-success">Discount: −{fmt(invoice.discountAmount)}</span>
           )}
         </div>
 
@@ -154,7 +154,7 @@ export function InvoiceCard({ invoice, canPay, onPay, paying }: InvoiceCardProps
             id="record-payment-btn"
             onClick={onPay}
             disabled={paying}
-            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-emerald-500/20"
+            className="flex items-center gap-2 px-4 py-2 bg-success /90 text-white text-xs font-semibold rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
           >
             <CreditCard size={13} />
             {paying ? 'Recording…' : 'Record Payment'}
@@ -164,8 +164,8 @@ export function InvoiceCard({ invoice, canPay, onPay, paying }: InvoiceCardProps
 
       {/* Expandable line detail */}
       {expanded && (
-        <div className="px-5 pb-5 border-t border-zinc-800">
-          <p className="text-xs font-medium text-zinc-500 mt-4 mb-2">Invoice Lines</p>
+        <div className="px-5 pb-5 border-t border-hairline">
+          <p className="text-xs font-medium text-subtle mt-4 mb-2">Invoice Lines</p>
           <LineRows lines={invoice.lineSnapshot} />
         </div>
       )}

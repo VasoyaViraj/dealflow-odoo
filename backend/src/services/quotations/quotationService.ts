@@ -481,6 +481,69 @@ function translateApprovalError(err: unknown): unknown {
   return err;
 }
 
+/**
+ * Phase 8 — submit a negotiation request.
+ * Can only be called by the CUSTOMER.
+ */
+export async function submitNegotiation(actor: AuthUser, quotationId: string, note: string) {
+  return db.transaction(async (tx) => {
+    const quotation = await loadAuthorizedQuotation(tx, quotationId, actor);
+    if (actor.role !== ROLE.CUSTOMER) {
+      throw new QuotationError('FORBIDDEN', 'Only customers can submit negotiations');
+    }
+    
+    // PortalQuotationDetail allows negotiation on SUBMITTED, PENDING_MANAGER, PENDING_FINANCE
+    if (!['SUBMITTED', 'PENDING_MANAGER', 'PENDING_FINANCE', 'APPROVED'].includes(quotation.status)) {
+      throw new QuotationError('INVALID_STATE_TRANSITION', 'Quotation is not in a negotiable state');
+    }
+
+    const currentNotes = quotation.notes ? quotation.notes + '\n\n' : '';
+    const newNotes = currentNotes + `Customer Negotiation Request:\n${note}`;
+
+    await tx
+      .update(quotations)
+      .set({ 
+        status: 'NEGOTIATION_REQUESTED', 
+        notes: newNotes, 
+        version: sql`${quotations.version} + 1`,
+        updatedAt: new Date() 
+      })
+      .where(eq(quotations.id, quotationId));
+
+    await logAudit(tx, actor, 'QUOTATION_NEGOTIATION_REQUESTED', quotationId, { note });
+    return hydrate(tx, quotationId, actor);
+  });
+}
+
+/**
+ * Phase 8 — confirm an APPROVED quotation.
+ * Can only be called by the CUSTOMER.
+ */
+export async function confirmQuotation(actor: AuthUser, quotationId: string) {
+  return db.transaction(async (tx) => {
+    const quotation = await loadAuthorizedQuotation(tx, quotationId, actor);
+    if (actor.role !== ROLE.CUSTOMER) {
+      throw new QuotationError('FORBIDDEN', 'Only customers can confirm quotations');
+    }
+    
+    if (quotation.status !== 'APPROVED') {
+      throw new QuotationError('INVALID_STATE_TRANSITION', 'Only approved quotations can be confirmed');
+    }
+
+    await tx
+      .update(quotations)
+      .set({ 
+        status: 'CONFIRMED', 
+        version: sql`${quotations.version} + 1`,
+        updatedAt: new Date() 
+      })
+      .where(eq(quotations.id, quotationId));
+
+    await logAudit(tx, actor, 'QUOTATION_CONFIRMED', quotationId, {});
+    return hydrate(tx, quotationId, actor);
+  });
+}
+
 // ─── Calculation ─────────────────────────────────────────────────────────────
 
 /**
@@ -646,6 +709,7 @@ interface LoadedQuotation extends AuthorizableQuotation {
   id: string;
   version: number;
   customerId: string;
+  notes: string | null;
 }
 
 async function loadAuthorizedQuotation(
@@ -662,6 +726,7 @@ async function loadAuthorizedQuotation(
       salesRepId: quotations.salesRepId,
       status: quotations.status,
       version: quotations.version,
+      notes: quotations.notes,
       customerLinkedUserId: customers.linkedUserId,
     })
     .from(quotations)

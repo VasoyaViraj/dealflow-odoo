@@ -8,6 +8,7 @@ import adminRouter from './routes/admin.js';
 import productsRouter from './routes/products.js';
 import customersRouter from './routes/customers.js';
 import discountConfigRouter from './routes/discountConfig.js';
+import approvalsRouter from './routes/approvals.js';
 
 import { requireAuth } from './middleware/auth.js';
 
@@ -31,6 +32,9 @@ app.use('/api/v1/discount-config', discountConfigRouter);
 
 // ─── Admin-only CRUD routes ───────────────────────────────────────────────────
 app.use('/api/v1/admin', adminRouter);
+
+// ─── Phase 4: Approval engine routes ──────────────────────────────────────────
+app.use('/api/v1', approvalsRouter);
 
 // ─── Legacy welcome endpoint ─────────────────────────────────────────────────
 app.get('/api/v1/welcome', requireAuth, (req, res) => {

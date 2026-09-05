@@ -110,6 +110,16 @@ export function BillingOverview({ quotationId, userRole, showToast }: BillingOve
     }
   };
 
+  const handleGenerateInvoice = async (subscriptionId: string) => {
+    try {
+      await api.post(`/subscriptions/${subscriptionId}/invoice-next-cycle`);
+      showToast('Generated invoice for next cycle');
+      loadSummary();
+    } catch (e: any) {
+      showToast(e?.response?.data?.error?.message ?? 'Failed to generate invoice', 'error');
+    }
+  };
+
   const handlePayInvoice = async () => {
     if (!summary?.invoice) return;
     setPayingInv(true);
@@ -219,6 +229,7 @@ export function BillingOverview({ quotationId, userRole, showToast }: BillingOve
                   canModify={canBill}
                   onModify={() => setModifySub(sub)}
                   onCancel={() => setCancelSub(sub)}
+                  onGenerateInvoice={() => handleGenerateInvoice(sub.id)}
                 />
                 {/* Billing schedule for each subscription */}
                 {sub.scheduleEntries && sub.scheduleEntries.length > 0 && (

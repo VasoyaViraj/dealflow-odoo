@@ -89,3 +89,13 @@ export interface ProratePreview {
   newCharge: string;
   remainingDays: number;
 }
+
+export interface SubscriptionPlan {
+  id: string;
+  name: string;
+  billingCycle: BillingCycle;
+  priceMultiplier: string;
+  description: string | null;
+  isActive: boolean;
+  createdAt: string;
+}

@@ -350,12 +350,14 @@ function QuotationBuilderView({
 }) {
   const [q, setQ] = useState<Quotation>(initialQuotation);
   const [products, setProducts] = useState<Product[]>([]);
+  const [subscriptionPlans, setSubscriptionPlans] = useState<SubscriptionPlan[]>([]);
   const [catFilter, setCatFilter] = useState<'ALL' | 'HARDWARE' | 'SERVICES' | 'SUBSCRIPTION'>('ALL');
   const [search, setSearch] = useState('');
   const [adding, setAdding] = useState<string | null>(null);  // productId being added
   const [lineUpdating, setLineUpdating] = useState<string | null>(null); // lineId being updated
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [planSelectProduct, setPlanSelectProduct] = useState<Product | null>(null);
   const [notes, setNotes] = useState(initialQuotation.notes ?? '');
   const [orderDiscount, setOrderDiscount] = useState(initialQuotation.quotationDiscountPercent ?? '0');
   const [sidebarTab, setSidebarTab] = useState<'summary' | 'billing'>('summary');
@@ -365,6 +367,7 @@ function QuotationBuilderView({
 
   useEffect(() => {
     api.get('/products').then(r => setProducts(r.data.data));
+    api.get('/products/subscription-plans').then(r => setSubscriptionPlans(r.data.data)).catch(() => {});
   }, []);
 
   // ─ Product Catalogue helpers
@@ -390,13 +393,23 @@ function QuotationBuilderView({
 
   // ─ Mutations
 
-  const addProduct = async (productId: string) => {
+  const addProduct = async (productId: string, subscriptionPlanId?: string) => {
     if (!isEditable) return;
+    
+    const product = products.find(p => p.id === productId);
+    if (!product) return;
+
+    if (product.category === 'SUBSCRIPTION' && !subscriptionPlanId) {
+      setPlanSelectProduct(product);
+      return;
+    }
+
     setAdding(productId);
     try {
-      const r = await api.post(`/quotations/${q.id}/items`, { productId, quantity: 1, expectedVersion: q.version });
+      const r = await api.post(`/quotations/${q.id}/items`, { productId, quantity: 1, expectedVersion: q.version, subscriptionPlanId });
       setQ(r.data.data);
       showToast('Product added');
+      setPlanSelectProduct(null);
     } catch (e: any) {
       showToast(e?.response?.data?.error?.message ?? 'Failed to add product', 'error');
     } finally { setAdding(null); }
@@ -860,6 +873,42 @@ function QuotationBuilderView({
           )}
         </div>
       </div>
+      
+      {/* Plan Selection Modal */}
+      {planSelectProduct && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 w-full max-w-md shadow-2xl">
+            <h3 className="text-lg font-bold text-white mb-2">Select Subscription Plan</h3>
+            <p className="text-sm text-zinc-400 mb-6">Choose a billing cycle for {planSelectProduct.name}</p>
+            <div className="space-y-3 mb-6">
+              {subscriptionPlans.map(plan => (
+                <button
+                  key={plan.id}
+                  onClick={() => addProduct(planSelectProduct.id, plan.id)}
+                  className="w-full flex items-center justify-between p-4 bg-zinc-800/50 hover:bg-zinc-800 border border-zinc-700/50 hover:border-violet-500/50 rounded-xl transition text-left group"
+                >
+                  <div>
+                    <p className="font-semibold text-zinc-200 group-hover:text-white">{plan.name}</p>
+                    <p className="text-xs text-zinc-500">{plan.description}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm font-bold text-violet-400">
+                      {fmt(Number(planSelectProduct.unitPrice) * Number(plan.priceMultiplier))}
+                    </p>
+                    <p className="text-xs text-zinc-500">per {plan.billingCycle.toLowerCase()}</p>
+                  </div>
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={() => setPlanSelectProduct(null)}
+              className="w-full px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-white text-sm font-semibold rounded-lg transition"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
     </div>
 
   );

@@ -5,7 +5,7 @@
 import { Router } from 'express';
 import { eq } from 'drizzle-orm';
 import { db } from '../db/index.js';
-import { products } from '../db/schema.js';
+import { products, subscriptionPlans } from '../db/schema.js';
 import { requireAuth } from '../middleware/auth.js';
 
 const router = Router();
@@ -17,6 +17,20 @@ router.get('/', requireAuth, async (_req, res) => {
       .from(products)
       .where(eq(products.isActive, true))
       .orderBy(products.category, products.name);
+    res.json({ success: true, data: rows });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
+router.get('/subscription-plans', requireAuth, async (_req, res) => {
+  try {
+    const rows = await db
+      .select()
+      .from(subscriptionPlans)
+      .where(eq(subscriptionPlans.isActive, true))
+      .orderBy(subscriptionPlans.name);
     res.json({ success: true, data: rows });
   } catch (err) {
     console.error(err);

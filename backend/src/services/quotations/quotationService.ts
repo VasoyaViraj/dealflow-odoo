@@ -25,6 +25,7 @@ import {
   customers,
   discountTierConfigs,
   products,
+  subscriptionPlans,
   quotationLines,
   quotationSequence,
   quotations,
@@ -73,12 +74,14 @@ export interface AddLineInput {
   productId: string;
   quantity: number;
   discountPercent?: number;
+  subscriptionPlanId?: string;
   expectedVersion?: number;
 }
 
 export interface UpdateLineInput {
   quantity?: number;
   discountPercent?: number;
+  subscriptionPlanId?: string;
   expectedVersion?: number;
 }
 
@@ -240,6 +243,23 @@ export async function addLine(actor: AuthUser, quotationId: string, input: AddLi
     const quantity = validateQuantity(input.quantity);
     const discountPct = percent(validateDiscount(input.discountPercent ?? 0, 'discountPercent'));
     const product = await loadProduct(tx, input.productId);
+    
+    let unitPrice = product.unitPrice;
+    let unitCost = product.costPrice;
+    let subscriptionPlanId = null;
+
+    if (product.category === 'SUBSCRIPTION') {
+      if (!input.subscriptionPlanId) {
+        throw new QuotationError('VALIDATION_ERROR', 'Subscription plan is required for subscription products', [{ field: 'subscriptionPlanId', message: 'Required for subscriptions' }]);
+      }
+      const [plan] = await tx.select().from(subscriptionPlans).where(eq(subscriptionPlans.id, input.subscriptionPlanId));
+      if (!plan) {
+        throw new QuotationError('VALIDATION_ERROR', 'Subscription plan not found');
+      }
+      unitPrice = (Number(unitPrice) * Number(plan.priceMultiplier)).toString();
+      unitCost = (Number(unitCost) * Number(plan.priceMultiplier)).toString();
+      subscriptionPlanId = plan.id;
+    }
 
     const [{ nextLineNumber }] = await tx
       .select({ nextLineNumber: sql<number>`coalesce(max(${quotationLines.lineNumber}), 0) + 1` })
@@ -251,14 +271,15 @@ export async function addLine(actor: AuthUser, quotationId: string, input: AddLi
       .values({
         quotationId,
         productId: product.id,
+        subscriptionPlanId,
         lineNumber: nextLineNumber,
         // Snapshot the catalogue so a later price change cannot restate this
         // quotation (BUSINESS_RULES: totals reproducible from stored inputs).
         productName: product.name,
         productSku: product.sku,
         category: product.category,
-        unitPrice: product.unitPrice,
-        unitCost: product.costPrice,
+        unitPrice,
+        unitCost,
         taxRate: product.taxRate,
         quantity,
         discountPercent: discountPct,
@@ -296,8 +317,22 @@ export async function updateLine(
     if (input.discountPercent !== undefined) {
       patch.discountPercent = percent(validateDiscount(input.discountPercent, 'discountPercent'));
     }
+    
+    // If updating plan, we need to recalculate unitPrice and unitCost from the product
+    if (input.subscriptionPlanId !== undefined && line.category === 'SUBSCRIPTION') {
+      const [plan] = await tx.select().from(subscriptionPlans).where(eq(subscriptionPlans.id, input.subscriptionPlanId));
+      if (!plan) {
+        throw new QuotationError('VALIDATION_ERROR', 'Subscription plan not found');
+      }
+      const product = await loadProduct(tx, line.productId);
+      patch.subscriptionPlanId = plan.id;
+      patch.unitPrice = (Number(product.unitPrice) * Number(plan.priceMultiplier)).toString();
+      patch.unitCost = (Number(product.costPrice) * Number(plan.priceMultiplier)).toString();
+    }
 
-    await tx.update(quotationLines).set(patch).where(eq(quotationLines.id, line.id));
+    if (Object.keys(patch).length > 1) {
+      await tx.update(quotationLines).set(patch).where(eq(quotationLines.id, line.id));
+    }
 
     await recalculateAndPersist(tx, quotationId);
     await logAudit(tx, actor, 'QUOTATION_ITEM_UPDATED', quotationId, { lineId: line.id, ...patch });

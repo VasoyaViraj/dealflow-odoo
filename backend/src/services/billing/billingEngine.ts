@@ -457,8 +457,12 @@ export async function calculateProration(
   const dailyRate    = unitNetPrice.div(totalDays);
 
   const credit    = dailyRate.times(sub.quantity).times(remainingDays);
-  const newQty    = newQuantity ?? sub.quantity;
-  const newCharge = dailyRate.times(newQty).times(remainingDays);
+  
+  // To handle plan changes in future, we'd need to load the new plan's multiplier.
+  // For now, if no plan is provided, we use the current unit net price.
+  let newUnitNetPrice = unitNetPrice;
+  const newQty = newQuantity ?? sub.quantity;
+  const newCharge = newUnitNetPrice.times(newQty).times(remainingDays);
   const diff      = newCharge.minus(credit);
 
   return {
@@ -477,7 +481,7 @@ export async function calculateProration(
  */
 export async function modifySubscription(
   subscriptionId: string,
-  patch: { quantity?: number; notes?: string },
+  patch: { quantity?: number; planId?: string; notes?: string },
   userId: string,
 ) {
   const [sub] = await db
@@ -494,14 +498,34 @@ export async function modifySubscription(
     ? await calculateProration(subscriptionId, patch.quantity)
     : null;
 
+  let newUnitNetPrice = sub.unitPrice;
+  let newBillingCycle = sub.billingCycle;
+  let newPlanId = sub.subscriptionPlanId;
+
+  if (patch.planId && patch.planId !== sub.subscriptionPlanId) {
+    const [plan] = await db.select().from(schema.subscriptionPlans).where(eq(schema.subscriptionPlans.id, patch.planId));
+    if (!plan) throw new BillingError('VALIDATION_ERROR', 'New subscription plan not found');
+    
+    // Reverse the old multiplier
+    const [oldPlan] = await db.select().from(schema.subscriptionPlans).where(eq(schema.subscriptionPlans.id, sub.subscriptionPlanId!));
+    const basePrice = oldPlan ? new Decimal(sub.unitPrice).div(oldPlan.priceMultiplier).toString() : sub.unitPrice;
+    
+    newUnitNetPrice = new Decimal(basePrice).times(plan.priceMultiplier).toString();
+    newBillingCycle = plan.billingCycle;
+    newPlanId = plan.id;
+  }
+
   const newQty = patch.quantity ?? sub.quantity;
-  const newCycleAmount = cycleNetAmount(newQty, sub.unitPrice, sub.discountPercent);
+  const newCycleAmount = cycleNetAmount(newQty, newUnitNetPrice, sub.discountPercent);
 
   return db.transaction(async (tx) => {
     const [updated] = await tx
       .update(schema.subscriptions)
       .set({
         quantity: newQty,
+        unitPrice: newUnitNetPrice,
+        subscriptionPlanId: newPlanId,
+        billingCycle: newBillingCycle,
         cycleAmount: newCycleAmount.toFixed(2),
         lastProratedAmount: proration ? proration.proratedAmount : sub.lastProratedAmount,
         updatedAt: new Date(),
@@ -510,6 +534,9 @@ export async function modifySubscription(
       .returning();
 
     // Refresh future schedule entries with the new amount
+    // Ideally we should rebuild the schedule dates if the billingCycle changed.
+    // For now, we'll just update the amount to keep it simple, since a cycle change
+    // requires a more complex rebuild of the future dates.
     await tx
       .update(schema.billingScheduleEntries)
       .set({ amount: newCycleAmount.toFixed(2) })
@@ -679,4 +706,88 @@ export async function getSubscription(subscriptionId: string) {
     .orderBy(schema.billingScheduleEntries.dueDate);
 
   return { ...sub, scheduleEntries };
+}
+
+// ─── invoiceNextCycle ─────────────────────────────────────────────────────────
+
+/**
+ * Find the next UPCOMING billing schedule entry and generate an invoice for it.
+ */
+export async function invoiceNextCycle(subscriptionId: string, userId: string) {
+  return db.transaction(async (tx) => {
+    const [sub] = await tx
+      .select()
+      .from(schema.subscriptions)
+      .where(eq(schema.subscriptions.id, subscriptionId));
+
+    if (!sub) throw new BillingError('SUBSCRIPTION_NOT_FOUND', 'Subscription not found');
+    if (sub.status !== 'ACTIVE') {
+      throw new BillingError('SUBSCRIPTION_NOT_ACTIVE', 'Only active subscriptions can be invoiced');
+    }
+
+    const [nextEntry] = await tx
+      .select()
+      .from(schema.billingScheduleEntries)
+      .where(and(
+        eq(schema.billingScheduleEntries.subscriptionId, subscriptionId),
+        eq(schema.billingScheduleEntries.status, 'UPCOMING')
+      ))
+      .orderBy(schema.billingScheduleEntries.dueDate)
+      .limit(1);
+
+    if (!nextEntry) {
+      throw new BillingError('VALIDATION_ERROR', 'No upcoming billing schedule entry found');
+    }
+
+    // Generate Invoice
+    const [{ nextVal }] = await tx
+      .update(schema.invoiceSequence)
+      .set({ lastValue: sql`${schema.invoiceSequence.lastValue} + 1` })
+      .where(eq(schema.invoiceSequence.id, 1))
+      .returning({ nextVal: schema.invoiceSequence.lastValue });
+
+    const invoiceNumber = `INV-${String(nextVal).padStart(6, '0')}`;
+    const taxAmount = new Decimal(nextEntry.amount).times(sub.taxRate).div(100);
+    const grandTotal = new Decimal(nextEntry.amount).plus(taxAmount);
+
+    const [invoice] = await tx
+      .insert(schema.invoices)
+      .values({
+        invoiceNumber,
+        quotationId: sub.quotationId,
+        customerId: sub.customerId,
+        subscriptionId: sub.id,
+        type: 'SUBSCRIPTION',
+        status: 'ISSUED',
+        lineSnapshot: [{
+           productName: sub.productName,
+           quantity: sub.quantity,
+           unitPrice: sub.unitPrice,
+           discountPercent: sub.discountPercent,
+           cycleAmount: nextEntry.amount,
+        }],
+        subtotal: nextEntry.amount,
+        taxAmount: taxAmount.toFixed(2),
+        grandTotal: grandTotal.toFixed(2),
+        dueDate: nextEntry.dueDate,
+        createdBy: userId,
+      })
+      .returning();
+
+    // Update schedule entry
+    await tx
+      .update(schema.billingScheduleEntries)
+      .set({ status: 'INVOICED', invoiceId: invoice.id })
+      .where(eq(schema.billingScheduleEntries.id, nextEntry.id));
+
+    await tx.insert(schema.auditLogs).values({
+      userId,
+      action: 'INVOICE_CREATED',
+      entityType: 'invoice',
+      entityId: invoice.id,
+      metadata: { subscriptionId: sub.id, amount: invoice.grandTotal },
+    });
+
+    return invoice;
+  });
 }

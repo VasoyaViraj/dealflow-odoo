@@ -41,9 +41,10 @@ const listQuerySchema = z.object({
 
 const modifySchema = z.object({
   quantity: z.number().int().positive().optional(),
+  planId: uuid.optional(),
   notes: z.string().max(2000).optional(),
-}).refine(v => v.quantity !== undefined || v.notes !== undefined, {
-  message: 'Provide quantity and/or notes',
+}).refine(v => v.quantity !== undefined || v.planId !== undefined || v.notes !== undefined, {
+  message: 'Provide quantity, planId, and/or notes',
 });
 
 const cancelSchema = z.object({
@@ -231,6 +232,21 @@ router.post('/subscriptions/:id/modify', async (req: Request, res: Response) => 
   try {
     const result = await billingEngine.modifySubscription(subscriptionId, parsed.data, req.user!.id);
     return ok(res, result);
+  } catch (err) {
+    return fail(res, err);
+  }
+});
+
+/** POST /subscriptions/:id/invoice-next-cycle — generate invoice for current/next billing cycle */
+router.post('/subscriptions/:id/invoice-next-cycle', async (req: Request, res: Response) => {
+  if (!canBill(req)) {
+    return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: 'Not authorised' } });
+  }
+  const subscriptionId = String(req.params.id);
+  
+  try {
+    const invoice = await billingEngine.invoiceNextCycle(subscriptionId, req.user!.id);
+    return ok(res, invoice, 201);
   } catch (err) {
     return fail(res, err);
   }

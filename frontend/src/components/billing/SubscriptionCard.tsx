@@ -61,9 +61,10 @@ interface SubscriptionCardProps {
   canModify?: boolean;
   onModify?: () => void;
   onCancel?: () => void;
+  onGenerateInvoice?: () => void;
 }
 
-export function SubscriptionCard({ subscription: sub, canModify, onModify, onCancel }: SubscriptionCardProps) {
+export function SubscriptionCard({ subscription: sub, canModify, onModify, onCancel, onGenerateInvoice }: SubscriptionCardProps) {
   const [expanded, setExpanded] = useState(false);
 
   const days = daysUntil(sub.nextBillingDate);
@@ -189,7 +190,7 @@ export function SubscriptionCard({ subscription: sub, canModify, onModify, onCan
 
           {/* Action buttons */}
           {canModify && sub.status === 'ACTIVE' && (
-            <div className="flex gap-3 mt-2">
+            <div className="flex gap-3 mt-2 flex-wrap">
               <button
                 id={`modify-sub-btn-${sub.id}`}
                 onClick={onModify}
@@ -198,6 +199,16 @@ export function SubscriptionCard({ subscription: sub, canModify, onModify, onCan
                 <TrendingUp size={12} />
                 Modify (Prorate)
               </button>
+              {onGenerateInvoice && (
+                <button
+                  id={`invoice-sub-btn-${sub.id}`}
+                  onClick={onGenerateInvoice}
+                  className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-lg transition"
+                >
+                  <Calendar size={12} />
+                  Generate Invoice
+                </button>
+              )}
               <button
                 id={`cancel-sub-btn-${sub.id}`}
                 onClick={onCancel}

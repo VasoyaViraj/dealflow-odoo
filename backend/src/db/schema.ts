@@ -46,6 +46,28 @@ export const subscriptionBillingCycleEnum = pgEnum('subscription_billing_cycle',
   'YEARLY',
 ]);
 
+/**
+ * Warehouse priority — a business preference ordering, not a scoring weight.
+ * The fulfillment planner uses it to generate one of its candidate plans and to
+ * break exact score ties; it deliberately carries no weight of its own so the
+ * five configured weights still sum to 100.
+ */
+export const warehousePriorityEnum = pgEnum('warehouse_priority', [
+  'HIGH',
+  'MEDIUM',
+  'LOW',
+]);
+
+/**
+ * A fulfillment order is FULFILLED when every stocked unit found a warehouse,
+ * BACKORDERED while any quantity is still waiting on stock. There is no
+ * in-transit state: shipment tracking is out of scope for this phase.
+ */
+export const fulfillmentStatusEnum = pgEnum('fulfillment_status', [
+  'FULFILLED',
+  'BACKORDERED',
+]);
+
 // ─── Phase 1 Tables ──────────────────────────────────────────────────────────
 
 export const users = pgTable('users', {
@@ -169,6 +191,16 @@ export const warehouses = pgTable('warehouses', {
   id: uuid('id').primaryKey().defaultRandom(),
   name: text('name').notNull(),
   location: text('location'),
+
+  // ─ Fulfillment economics (Phase 5) ─
+  // shippingBaseCost is charged once per shipment dispatched from this
+  // warehouse; costPerUnit scales with the units in that shipment. Together
+  // they are the whole shipping model — this build has no distance/geo term.
+  shippingBaseCost: numeric('shipping_base_cost', { precision: 12, scale: 2 }).notNull().default('0'),
+  costPerUnit: numeric('cost_per_unit', { precision: 12, scale: 2 }).notNull().default('0'),
+  deliveryDays: integer('delivery_days').notNull().default(3),
+  priority: warehousePriorityEnum('priority').notNull().default('MEDIUM'),
+
   isActive: boolean('is_active').notNull().default(true),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
@@ -435,4 +467,131 @@ export const quotationApprovals = pgTable('quotation_approvals', {
 export const quotationSequence = pgTable('quotation_sequence', {
   id: integer('id').primaryKey().default(1),
   lastValue: integer('last_value').notNull().default(0),
+});
+
+// ─── Fulfillment Engine — Phase 5 ────────────────────────────────────────────
+//
+// Once a quotation is APPROVED, the fulfillment planner proposes how to source
+// every stocked line from the warehouses that actually hold stock. It generates
+// several candidate plans, scores each against configurable weights, and the
+// winning plan is persisted here when a user accepts it (or overrides it by
+// hand). Accepting a plan is what decrements `inventory`.
+
+/**
+ * fulfillment_orders — one per quotation, and exactly one: `quotationId` is
+ * UNIQUE, which is the idempotency guard. A second confirm of the same
+ * quotation is rejected as FULFILLMENT_EXISTS rather than silently taking the
+ * stock twice.
+ *
+ * planScore / subScores / reasons are a snapshot of WHY this split was chosen.
+ * They are stored rather than recomputed because the inputs (live stock,
+ * configured weights) move underneath us — the record must still explain the
+ * decision that was actually made at the time.
+ */
+export const fulfillmentOrders = pgTable('fulfillment_orders', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  quotationId: uuid('quotation_id')
+    .notNull()
+    .unique()
+    .references(() => quotations.id, { onDelete: 'cascade' }),
+
+  status: fulfillmentStatusEnum('status').notNull().default('FULFILLED'),
+
+  /** Which candidate strategy won, or 'MANUAL_OVERRIDE'. */
+  strategy: text('strategy').notNull(),
+  planScore: numeric('plan_score', { precision: 6, scale: 2 }).notNull().default('0'),
+  /** Per-factor 0–100 scores: { completeness, shippingCost, deliveryTime, shipmentCount, inventoryPreservation }. */
+  subScores: jsonb('sub_scores'),
+  /** Human-readable justifications shown in the UI. */
+  reasons: jsonb('reasons'),
+
+  totalShippingCost: numeric('total_shipping_cost', { precision: 14, scale: 2 }).notNull().default('0'),
+  shipmentCount: integer('shipment_count').notNull().default(0),
+  maxDeliveryDays: integer('max_delivery_days').notNull().default(0),
+
+  isManualOverride: boolean('is_manual_override').notNull().default(false),
+
+  createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => [
+  index('fulfillment_orders_status_idx').on(table.status),
+]);
+
+/**
+ * fulfillment_shipments — one row per warehouse used by a fulfillment order.
+ * "One warehouse = one shipment" is the whole shipment model, which is why the
+ * unique index exists: two allocations from the same warehouse must roll up
+ * into a single shipment and be charged one base cost, not two.
+ */
+export const fulfillmentShipments = pgTable('fulfillment_shipments', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  fulfillmentOrderId: uuid('fulfillment_order_id')
+    .notNull()
+    .references(() => fulfillmentOrders.id, { onDelete: 'cascade' }),
+  warehouseId: uuid('warehouse_id')
+    .notNull()
+    .references(() => warehouses.id, { onDelete: 'restrict' }),
+
+  totalUnits: integer('total_units').notNull().default(0),
+  shippingCost: numeric('shipping_cost', { precision: 14, scale: 2 }).notNull().default('0'),
+  deliveryDays: integer('delivery_days').notNull().default(0),
+
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex('fulfillment_shipment_warehouse_idx').on(table.fulfillmentOrderId, table.warehouseId),
+]);
+
+/**
+ * fulfillment_allocations — the line-level detail: this many units of this
+ * quotation line come from this warehouse.
+ *
+ * A backorder row is the same shape with `warehouseId` and `shipmentId` null
+ * and `isBackorder` true. Keeping backorders in the same table (rather than a
+ * separate one) is what makes consolidation a simple UPDATE: when stock
+ * arrives, the row stops being a backorder and joins a shipment.
+ */
+export const fulfillmentAllocations = pgTable('fulfillment_allocations', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  fulfillmentOrderId: uuid('fulfillment_order_id')
+    .notNull()
+    .references(() => fulfillmentOrders.id, { onDelete: 'cascade' }),
+  shipmentId: uuid('shipment_id')
+    .references(() => fulfillmentShipments.id, { onDelete: 'set null' }),
+  quotationLineId: uuid('quotation_line_id')
+    .notNull()
+    .references(() => quotationLines.id, { onDelete: 'cascade' }),
+  productId: uuid('product_id')
+    .notNull()
+    .references(() => products.id, { onDelete: 'restrict' }),
+  warehouseId: uuid('warehouse_id').references(() => warehouses.id, { onDelete: 'restrict' }),
+
+  quantity: integer('quantity').notNull(),
+  isBackorder: boolean('is_backorder').notNull().default(false),
+
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => [
+  index('fulfillment_allocations_order_idx').on(table.fulfillmentOrderId),
+  index('fulfillment_allocations_line_idx').on(table.quotationLineId),
+]);
+
+/**
+ * fulfillment_settings — the single row of scoring weights, admin-editable.
+ *
+ * Same single-row shape as quotation_sequence. The weights are what make the
+ * engine configurable business logic rather than a hardcoded preference: an
+ * admin who pushes shipping cost to 60 and delivery to 0 gets a visibly
+ * different recommendation for the same order.
+ *
+ * Defaults are the five weights from the spec, summing to 100.
+ */
+export const fulfillmentSettings = pgTable('fulfillment_settings', {
+  id: integer('id').primaryKey().default(1),
+  weightCompleteness: numeric('weight_completeness', { precision: 5, scale: 2 }).notNull().default('30'),
+  weightShippingCost: numeric('weight_shipping_cost', { precision: 5, scale: 2 }).notNull().default('25'),
+  weightDeliveryTime: numeric('weight_delivery_time', { precision: 5, scale: 2 }).notNull().default('20'),
+  weightShipmentCount: numeric('weight_shipment_count', { precision: 5, scale: 2 }).notNull().default('15'),
+  weightInventoryPreservation: numeric('weight_inventory_preservation', { precision: 5, scale: 2 }).notNull().default('10'),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });

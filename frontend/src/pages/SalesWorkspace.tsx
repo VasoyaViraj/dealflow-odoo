@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import AppShell from '../components/layout/AppShell';
 import api from '../lib/api';
+import FulfillmentPanel from '../components/fulfillment/FulfillmentPanel';
 import {
   Plus, ArrowLeft, ShoppingCart, Package, RefreshCw,
   Trash2, AlertTriangle, CheckCircle, ChevronRight,
@@ -709,6 +710,15 @@ function QuotationBuilderView({
                     </div>
                   );
                 })}
+              </div>
+            )}
+
+            {/* Fulfillment — appears the moment the deal is approved. The rep
+                owns the deal end to end, so they can accept or override the
+                warehouse split here rather than handing off to Operations. */}
+            {q.status === 'APPROVED' && (
+              <div className="mt-8 pt-6 border-t border-zinc-800">
+                <FulfillmentPanel quotationId={q.id} canConfirm onChanged={() => showToast('Fulfillment updated')} />
               </div>
             )}
           </div>

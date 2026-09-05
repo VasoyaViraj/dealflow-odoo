@@ -67,6 +67,20 @@ export function canMutate(actor: AuthUser, quotation: AuthorizableQuotation): bo
   return false;
 }
 
+/**
+ * Who may accept or override a fulfillment split (Phase 5).
+ *
+ * Finance / Operations owns warehouse splits and backorder decisions, and the
+ * rep who owns the deal may act on their own quotation so a single person can
+ * carry a deal end to end. A Sales Manager is deliberately excluded: their
+ * authority is the approval decision, and they can still read the plan.
+ */
+export function canFulfil(actor: AuthUser, quotation: AuthorizableQuotation): boolean {
+  if (actor.role === ROLE.ADMIN || actor.role === ROLE.FINANCE_OPERATIONS) return true;
+  if (actor.role === ROLE.SALES_REPRESENTATIVE) return quotation.salesRepId === actor.id;
+  return false;
+}
+
 /** Throws FORBIDDEN unless the actor may create quotations. */
 export function assertCanCreate(actor: AuthUser): void {
   if (!canCreate(actor)) {

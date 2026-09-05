@@ -4,6 +4,7 @@
  */
 import { Router } from 'express';
 import { eq } from 'drizzle-orm';
+
 import { db } from '../db/index.js';
 import { customers, users } from '../db/schema.js';
 import { requireAuth } from '../middleware/auth.js';

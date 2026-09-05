@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import AppShell from '../components/layout/AppShell';
 import api from '../lib/api';
 import {
-  Users, Package, Percent, Warehouse, BarChart3, RefreshCw,
+  Users, Package, Percent, Warehouse, BarChart3, RefreshCw, Truck,
   Plus, Pencil, Check, X, AlertCircle, ChevronDown, Boxes
 } from 'lucide-react';
 
@@ -12,7 +12,17 @@ interface Customer { id: string; name: string; email: string; phone?: string; ti
 interface Product { id: string; name: string; sku?: string; category: string; unitPrice: string; costPrice: string; taxRate: string; isActive: boolean; }
 interface DiscountTier { id: string; tier: string; maxDiscountPct: string; }
 interface CategoryLimit { id: string; category: string; maxDiscountPct: string; }
-interface WarehouseRow { id: string; name: string; location?: string; isActive: boolean; }
+interface WarehouseRow {
+  id: string;
+  name: string;
+  location?: string;
+  isActive: boolean;
+  /** Fulfillment economics — numeric columns arrive as strings. */
+  shippingBaseCost?: string | number;
+  costPerUnit?: string | number;
+  deliveryDays?: number;
+  priority?: 'HIGH' | 'MEDIUM' | 'LOW';
+}
 interface InventoryRow { id: string; productName: string; productSku?: string; warehouseName: string; quantity: number; warehouseId: string; productId: string; }
 interface SubPlan { id: string; name: string; billingCycle: string; priceMultiplier: string; description?: string; }
 
@@ -135,6 +145,7 @@ const TABS = [
   { id: 'warehouses',   label: 'Warehouses',      icon: <Warehouse size={16} /> },
   { id: 'inventory',    label: 'Inventory',       icon: <Boxes size={16} /> },
   { id: 'plans',        label: 'Subscriptions',   icon: <RefreshCw size={16} /> },
+  { id: 'fulfillment',  label: 'Fulfillment Rules', icon: <Truck size={16} /> },
 ];
 
 // ─── Main Component ───────────────────────────────────────────────────────────
@@ -184,6 +195,7 @@ export default function AdminDashboard() {
           {activeTab === 'warehouses' && <WarehousesTab showToast={showToast} />}
           {activeTab === 'inventory'  && <InventoryTab showToast={showToast} />}
           {activeTab === 'plans'      && <PlansTab showToast={showToast} />}
+          {activeTab === 'fulfillment' && <FulfillmentRulesTab showToast={showToast} />}
         </div>
       </div>
 
@@ -493,12 +505,53 @@ function DiscountsTab({ showToast }: { showToast: (m: string, t?: 'success' | 'e
 }
 
 // ─── Warehouses Tab ───────────────────────────────────────────────────────────
+//
+// A warehouse is not just a place — its shipping cost, lead time and business
+// priority are the only inputs the fulfillment planner has (this build carries
+// no distance model), so these four fields are what an admin tunes to change
+// which split the engine recommends.
+
+const PRIORITIES: Array<'HIGH' | 'MEDIUM' | 'LOW'> = ['HIGH', 'MEDIUM', 'LOW'];
+
+const PRIORITY_STYLES: Record<string, string> = {
+  HIGH: 'bg-violet-500/15 text-violet-300 border-violet-500/30',
+  MEDIUM: 'bg-zinc-700 text-zinc-300 border-zinc-600',
+  LOW: 'bg-zinc-800 text-zinc-500 border-zinc-700',
+};
+
+const BLANK_WAREHOUSE = {
+  name: '', location: '',
+  shippingBaseCost: 0, costPerUnit: 0, deliveryDays: 3,
+  priority: 'MEDIUM' as 'HIGH' | 'MEDIUM' | 'LOW',
+};
+
+function NumField({
+  label, suffix, value, onChange, step = 1,
+}: {
+  label: string; suffix?: string; value: number; onChange: (n: number) => void; step?: number;
+}) {
+  return (
+    <label className="block">
+      <span className="block text-xs text-zinc-500 mb-1">{label}</span>
+      <div className="flex items-center gap-1.5">
+        <input
+          type="number" min={0} step={step} value={value}
+          onChange={e => onChange(Math.max(0, Number(e.target.value) || 0))}
+          className="w-full bg-zinc-700 border border-zinc-600 rounded-lg px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-violet-500"
+        />
+        {suffix && <span className="text-xs text-zinc-500 shrink-0">{suffix}</span>}
+      </div>
+    </label>
+  );
+}
 
 function WarehousesTab({ showToast }: { showToast: (m: string, t?: 'success' | 'error') => void }) {
   const [rows, setRows] = useState<WarehouseRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ name: '', location: '' });
+  const [form, setForm] = useState({ ...BLANK_WAREHOUSE });
+  const [editing, setEditing] = useState<Record<string, WarehouseRow>>({});
+  const [saving, setSaving] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -513,16 +566,44 @@ function WarehousesTab({ showToast }: { showToast: (m: string, t?: 'success' | '
       await api.post('/admin/warehouses', form);
       showToast(`Warehouse "${form.name}" created`);
       setShowForm(false);
-      setForm({ name: '', location: '' });
+      setForm({ ...BLANK_WAREHOUSE });
       load();
     } catch (e: any) {
       showToast(e?.response?.data?.error ?? 'Failed', 'error');
     }
   };
 
+  // Drafts are held per row so editing one warehouse never disturbs another.
+  const draftFor = (r: WarehouseRow) => editing[r.id] ?? r;
+  const edit = (r: WarehouseRow, patch: Partial<WarehouseRow>) =>
+    setEditing(d => ({ ...d, [r.id]: { ...draftFor(r), ...patch } }));
+
+  const save = async (r: WarehouseRow) => {
+    const draft = draftFor(r);
+    setSaving(r.id);
+    try {
+      await api.put(`/admin/warehouses/${r.id}`, {
+        location: draft.location ?? '',
+        shippingBaseCost: Number(draft.shippingBaseCost ?? 0),
+        costPerUnit: Number(draft.costPerUnit ?? 0),
+        deliveryDays: Number(draft.deliveryDays ?? 0),
+        priority: draft.priority ?? 'MEDIUM',
+      });
+      showToast(`${r.name} updated — the planner uses the new figures immediately`);
+      setEditing(d => { const next = { ...d }; delete next[r.id]; return next; });
+      load();
+    } catch (e: any) {
+      showToast(e?.response?.data?.error ?? 'Failed', 'error');
+    } finally { setSaving(null); }
+  };
+
   return (
     <div>
       <SectionHeader title="Warehouses" onAdd={() => setShowForm(v => !v)} addLabel="New Warehouse" />
+      <p className="text-sm text-zinc-500 mb-5">
+        Shipping cost and lead time here decide which warehouse split the fulfillment engine recommends.
+        Priority breaks ties between plans that score identically.
+      </p>
 
       {showForm && (
         <div className="bg-zinc-800 border border-zinc-700 rounded-xl p-5 mb-5 grid grid-cols-2 gap-3">
@@ -530,6 +611,22 @@ function WarehousesTab({ showToast }: { showToast: (m: string, t?: 'success' | '
             className="bg-zinc-700 border border-zinc-600 rounded-lg px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-violet-500" />
           <input placeholder="Location (optional)" value={form.location} onChange={e => setForm(f => ({ ...f, location: e.target.value }))}
             className="bg-zinc-700 border border-zinc-600 rounded-lg px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-violet-500" />
+
+          <NumField label="Shipping base cost (per shipment)" suffix="₹" value={form.shippingBaseCost}
+            onChange={n => setForm(f => ({ ...f, shippingBaseCost: n }))} />
+          <NumField label="Cost per unit" suffix="₹" value={form.costPerUnit}
+            onChange={n => setForm(f => ({ ...f, costPerUnit: n }))} />
+          <NumField label="Delivery lead time" suffix="days" value={form.deliveryDays}
+            onChange={n => setForm(f => ({ ...f, deliveryDays: n }))} />
+
+          <label className="block">
+            <span className="block text-xs text-zinc-500 mb-1">Priority</span>
+            <select value={form.priority} onChange={e => setForm(f => ({ ...f, priority: e.target.value as 'HIGH' | 'MEDIUM' | 'LOW' }))}
+              className="w-full bg-zinc-700 border border-zinc-600 rounded-lg px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-violet-500">
+              {PRIORITIES.map(p => <option key={p} value={p}>{p}</option>)}
+            </select>
+          </label>
+
           <div className="col-span-2 flex gap-2 justify-end">
             <button onClick={() => setShowForm(false)} className="px-4 py-2 text-sm text-zinc-400 hover:text-zinc-200">Cancel</button>
             <button onClick={create} className="px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white text-sm rounded-lg font-medium">Save</button>
@@ -539,21 +636,165 @@ function WarehousesTab({ showToast }: { showToast: (m: string, t?: 'success' | '
 
       {loading ? <div className="text-center py-10 text-zinc-500">Loading…</div> : (
         <div className="grid grid-cols-2 gap-4">
-          {rows.map(r => (
-            <div key={r.id} className="bg-zinc-800 border border-zinc-700 rounded-xl p-5">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="font-semibold text-zinc-100">{r.name}</p>
-                  <p className="text-sm text-zinc-500 mt-0.5">{r.location ?? 'No location set'}</p>
+          {rows.map(r => {
+            const draft = draftFor(r);
+            const dirty = editing[r.id] !== undefined;
+            return (
+              <div key={r.id} className="bg-zinc-800 border border-zinc-700 rounded-xl p-5">
+                <div className="flex items-start justify-between mb-4">
+                  <div>
+                    <p className="font-semibold text-zinc-100">{r.name}</p>
+                    <p className="text-sm text-zinc-500 mt-0.5">{r.location ?? 'No location set'}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${PRIORITY_STYLES[draft.priority ?? 'MEDIUM']}`}>
+                      {draft.priority ?? 'MEDIUM'}
+                    </span>
+                    <span className={`text-xs px-2 py-0.5 rounded-full ${r.isActive ? 'bg-emerald-500/15 text-emerald-400' : 'bg-zinc-700 text-zinc-400'}`}>
+                      {r.isActive ? 'Active' : 'Inactive'}
+                    </span>
+                  </div>
                 </div>
-                <span className={`text-xs px-2 py-0.5 rounded-full ${r.isActive ? 'bg-emerald-500/15 text-emerald-400' : 'bg-zinc-700 text-zinc-400'}`}>
-                  {r.isActive ? 'Active' : 'Inactive'}
-                </span>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <NumField label="Base cost / shipment" suffix="₹" value={Number(draft.shippingBaseCost ?? 0)}
+                    onChange={n => edit(r, { shippingBaseCost: n })} />
+                  <NumField label="Cost per unit" suffix="₹" value={Number(draft.costPerUnit ?? 0)}
+                    onChange={n => edit(r, { costPerUnit: n })} />
+                  <NumField label="Lead time" suffix="days" value={Number(draft.deliveryDays ?? 0)}
+                    onChange={n => edit(r, { deliveryDays: n })} />
+                  <label className="block">
+                    <span className="block text-xs text-zinc-500 mb-1">Priority</span>
+                    <select value={draft.priority ?? 'MEDIUM'} onChange={e => edit(r, { priority: e.target.value as 'HIGH' | 'MEDIUM' | 'LOW' })}
+                      className="w-full bg-zinc-700 border border-zinc-600 rounded-lg px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-violet-500">
+                      {PRIORITIES.map(p => <option key={p} value={p}>{p}</option>)}
+                    </select>
+                  </label>
+                </div>
+
+                {dirty && (
+                  <div className="flex justify-end gap-2 mt-4">
+                    <button
+                      onClick={() => setEditing(d => { const next = { ...d }; delete next[r.id]; return next; })}
+                      className="px-3 py-1.5 text-sm text-zinc-400 hover:text-zinc-200"
+                    >
+                      Discard
+                    </button>
+                    <button
+                      onClick={() => save(r)}
+                      disabled={saving === r.id}
+                      className="px-3 py-1.5 bg-violet-600 hover:bg-violet-500 text-white text-sm rounded-lg font-medium disabled:opacity-50"
+                    >
+                      {saving === r.id ? 'Saving…' : 'Save changes'}
+                    </button>
+                  </div>
+                )}
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
+    </div>
+  );
+}
+
+// ─── Fulfillment Rules Tab ────────────────────────────────────────────────────
+//
+// The five weights the fulfillment planner scores candidate plans with. This is
+// the screen that proves the engine is configurable business logic: push
+// shipping cost up and delivery down, re-open an approved quotation, and the
+// recommended split changes for the very same order.
+
+const WEIGHT_FIELDS: Array<{ key: keyof FulfillmentWeights; label: string; hint: string }> = [
+  { key: 'weightCompleteness',          label: 'Fulfilment completeness', hint: 'How much of the order can actually be sourced' },
+  { key: 'weightShippingCost',          label: 'Shipping cost',           hint: 'Total cost across every shipment in the plan' },
+  { key: 'weightDeliveryTime',          label: 'Delivery time',           hint: 'When the slowest shipment lands' },
+  { key: 'weightShipmentCount',         label: 'Number of shipments',     hint: 'Fewer parcels, less logistics complexity' },
+  { key: 'weightInventoryPreservation', label: 'Inventory preservation',  hint: 'Avoid draining a thin warehouse to zero' },
+];
+
+interface FulfillmentWeights {
+  weightCompleteness: string | number;
+  weightShippingCost: string | number;
+  weightDeliveryTime: string | number;
+  weightShipmentCount: string | number;
+  weightInventoryPreservation: string | number;
+}
+
+function FulfillmentRulesTab({ showToast }: { showToast: (m: string, t?: 'success' | 'error') => void }) {
+  const [weights, setWeights] = useState<Record<string, number> | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const r = await api.get('/admin/fulfillment-settings');
+      const d = r.data.data as FulfillmentWeights;
+      setWeights(Object.fromEntries(WEIGHT_FIELDS.map(f => [f.key, Number(d[f.key])])));
+    } finally { setLoading(false); }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  // The score is a percentage, so the weights have to add to 100 or scores stop
+  // being comparable between configurations. The server rejects anything else.
+  const total = weights ? Object.values(weights).reduce((n, v) => n + v, 0) : 0;
+  const balanced = Math.abs(total - 100) < 0.01;
+
+  const save = async () => {
+    if (!weights) return;
+    setSaving(true);
+    try {
+      await api.put('/admin/fulfillment-settings', weights);
+      showToast('Weights updated — new plans are scored with them immediately');
+      load();
+    } catch (e: any) {
+      showToast(e?.response?.data?.error ?? 'Failed', 'error');
+    } finally { setSaving(false); }
+  };
+
+  if (loading || !weights) return <div className="text-center py-10 text-zinc-500">Loading…</div>;
+
+  return (
+    <div>
+      <SectionHeader title="Fulfillment Scoring Weights" />
+      <p className="text-sm text-zinc-500 mb-5">
+        Every candidate warehouse split is scored 0–100 on these five factors and the highest total wins.
+        Change a weight and the engine's recommendation changes with it.
+      </p>
+
+      <div className="space-y-4 max-w-2xl">
+        {WEIGHT_FIELDS.map(f => (
+          <div key={f.key} className="bg-zinc-800 border border-zinc-700 rounded-xl p-4">
+            <div className="flex items-center justify-between mb-2">
+              <div>
+                <p className="text-sm font-medium text-zinc-100">{f.label}</p>
+                <p className="text-xs text-zinc-500 mt-0.5">{f.hint}</p>
+              </div>
+              <span className="text-sm font-bold text-violet-300 tabular-nums w-12 text-right">{weights[f.key]}%</span>
+            </div>
+            <input
+              type="range" min={0} max={100} step={1} value={weights[f.key]}
+              onChange={e => setWeights(w => ({ ...w!, [f.key]: Number(e.target.value) }))}
+              className="w-full accent-violet-500"
+            />
+          </div>
+        ))}
+      </div>
+
+      <div className="flex items-center justify-between max-w-2xl mt-5">
+        <p className={`text-sm font-medium ${balanced ? 'text-emerald-400' : 'text-amber-400'}`}>
+          Total {total}% {balanced ? '' : '— must add up to 100 before saving'}
+        </p>
+        <button
+          onClick={save}
+          disabled={!balanced || saving}
+          className="px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white text-sm rounded-lg font-medium disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          {saving ? 'Saving…' : 'Save weights'}
+        </button>
+      </div>
     </div>
   );
 }

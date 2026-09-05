@@ -19,6 +19,7 @@ import {
   warehouses,
   inventory,
   subscriptionPlans,
+  fulfillmentSettings,
   auditLogs,
 } from '../db/schema.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
@@ -241,10 +242,31 @@ router.get('/approval-rules', ...adminOnly, async (_req, res) => {
 
 // ─── Warehouses ───────────────────────────────────────────────────────────────
 
+/**
+ * A warehouse is also a set of shipping economics: these four fields are the
+ * only inputs the fulfillment planner has for cost and speed (this build has no
+ * distance model), so they are what an admin tunes to change its behaviour.
+ * Costs are accepted as numbers and stored as `numeric` strings.
+ */
 const warehouseSchema = z.object({
   name: z.string().min(1),
   location: z.string().optional(),
+  shippingBaseCost: z.number().min(0).optional(),
+  costPerUnit: z.number().min(0).optional(),
+  deliveryDays: z.number().int().min(0).max(365).optional(),
+  priority: z.enum(['HIGH', 'MEDIUM', 'LOW']).optional(),
+  isActive: z.boolean().optional(),
 });
+
+/** numeric() columns take strings; the API speaks numbers. */
+function warehouseValues(input: Partial<z.infer<typeof warehouseSchema>>) {
+  const { shippingBaseCost, costPerUnit, ...rest } = input;
+  return {
+    ...rest,
+    ...(shippingBaseCost !== undefined ? { shippingBaseCost: shippingBaseCost.toFixed(2) } : {}),
+    ...(costPerUnit !== undefined ? { costPerUnit: costPerUnit.toFixed(2) } : {}),
+  };
+}
 
 router.get('/warehouses', ...adminOnly, async (_req, res) => {
   try {
@@ -260,7 +282,9 @@ router.post('/warehouses', ...adminOnly, async (req, res) => {
     const parsed = warehouseSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ success: false, error: parsed.error.format() });
 
-    const [row] = await db.insert(warehouses).values({ ...parsed.data, isActive: true }).returning();
+    const [row] = await db.insert(warehouses)
+      .values({ isActive: true, ...warehouseValues(parsed.data), name: parsed.data.name })
+      .returning();
     await logAudit(req.user!.id, 'WAREHOUSE_CREATED', 'WAREHOUSE', row.id, { name: row.name });
     res.status(201).json({ success: true, data: row });
   } catch (err) {
@@ -274,7 +298,7 @@ router.put('/warehouses/:id', ...adminOnly, async (req, res) => {
     if (!parsed.success) return res.status(400).json({ success: false, error: parsed.error.format() });
 
     const [row] = await db.update(warehouses)
-      .set({ ...parsed.data, updatedAt: new Date() })
+      .set({ ...warehouseValues(parsed.data), updatedAt: new Date() })
       .where(eq(warehouses.id, req.params.id))
       .returning();
 
@@ -375,6 +399,76 @@ router.post('/subscription-plans', ...adminOnly, async (req, res) => {
     const [row] = await db.insert(subscriptionPlans).values({ ...parsed.data, isActive: true }).returning();
     res.status(201).json({ success: true, data: row });
   } catch (err) {
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
+
+// ─── Fulfillment scoring weights ──────────────────────────────────────────────
+//
+// The five weights the fulfillment planner scores candidate plans with. They
+// are stored in one row so the engine is configurable business logic rather
+// than a hardcoded preference: pushing shipping cost up and delivery down
+// changes which split the engine recommends for the very same order.
+
+const weightsSchema = z.object({
+  weightCompleteness: z.number().min(0).max(100),
+  weightShippingCost: z.number().min(0).max(100),
+  weightDeliveryTime: z.number().min(0).max(100),
+  weightShipmentCount: z.number().min(0).max(100),
+  weightInventoryPreservation: z.number().min(0).max(100),
+});
+
+/** Reads the single settings row, creating it with the defaults on first call. */
+async function readFulfillmentSettings() {
+  const [row] = await db.select().from(fulfillmentSettings).where(eq(fulfillmentSettings.id, 1));
+  if (row) return row;
+
+  await db.insert(fulfillmentSettings).values({ id: 1 }).onConflictDoNothing();
+  const [created] = await db.select().from(fulfillmentSettings).where(eq(fulfillmentSettings.id, 1));
+  return created;
+}
+
+router.get('/fulfillment-settings', ...adminOnly, async (_req, res) => {
+  try {
+    res.json({ success: true, data: await readFulfillmentSettings() });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
+router.put('/fulfillment-settings', ...adminOnly, async (req, res) => {
+  try {
+    const parsed = weightsSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ success: false, error: parsed.error.format() });
+
+    const total = Object.values(parsed.data).reduce((n, v) => n + v, 0);
+    if (Math.abs(total - 100) > 0.01) {
+      return res.status(400).json({
+        success: false,
+        error: `Weights must add up to 100 (received ${total}). A plan score is a percentage, so anything else makes scores incomparable between configurations.`,
+      });
+    }
+
+    await readFulfillmentSettings();
+
+    const [row] = await db.update(fulfillmentSettings)
+      .set({
+        weightCompleteness: parsed.data.weightCompleteness.toFixed(2),
+        weightShippingCost: parsed.data.weightShippingCost.toFixed(2),
+        weightDeliveryTime: parsed.data.weightDeliveryTime.toFixed(2),
+        weightShipmentCount: parsed.data.weightShipmentCount.toFixed(2),
+        weightInventoryPreservation: parsed.data.weightInventoryPreservation.toFixed(2),
+        updatedAt: new Date(),
+      })
+      .where(eq(fulfillmentSettings.id, 1))
+      .returning();
+
+    await logAudit(req.user!.id, 'FULFILLMENT_WEIGHTS_UPDATED', 'FULFILLMENT_SETTINGS', '1', parsed.data);
+    res.json({ success: true, data: row });
+  } catch (err) {
+    console.error(err);
     res.status(500).json({ success: false, error: 'Internal server error' });
   }
 });

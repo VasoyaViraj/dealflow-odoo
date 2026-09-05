@@ -1,7 +1,8 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
-import usersRouter from './routes/users';
+import authRouter from './routes/auth';
+import { requireAuth } from './middleware/auth';
 
 const app = express();
 
@@ -13,8 +14,22 @@ app.get('/health', (_req, res) => {
   res.json({ status: 'ok' });
 });
 
-// Routes
-app.use('/api/users', usersRouter);
+// API Routes
+app.use('/api/v1/auth', authRouter);
+
+// Temporary welcome endpoint for demo purposes
+app.get('/api/v1/welcome', requireAuth, (req, res) => {
+  const formattedRole = req.user!.role
+    .split('_')
+    .map(word => word.charAt(0) + word.slice(1).toLowerCase())
+    .join(' ');
+
+  res.json({
+    success: true,
+    message: `Welcome ${formattedRole}`,
+    role: req.user!.role,
+  });
+});
 
 const port = Number(process.env.PORT) || 3000;
 

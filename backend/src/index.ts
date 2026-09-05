@@ -9,6 +9,7 @@ import productsRouter from './routes/products.js';
 import customersRouter from './routes/customers.js';
 import discountConfigRouter from './routes/discountConfig.js';
 import quotationsRouter from './routes/quotations.js';
+import approvalsRouter from './routes/approvals.js';
 
 import { requireAuth } from './middleware/auth.js';
 
@@ -19,7 +20,7 @@ app.use(express.json());
 
 // ─── Health check ────────────────────────────────────────────────────────────
 app.get('/health', (_req, res) => {
-  res.json({ status: 'ok', version: 'phase-3' });
+  res.json({ status: 'ok', version: 'phase-3+4' });
 });
 
 // ─── Auth routes ─────────────────────────────────────────────────────────────
@@ -38,6 +39,9 @@ app.use('/api/v1/quotations', quotationsRouter);
 
 // ─── Admin-only CRUD routes ───────────────────────────────────────────────────
 app.use('/api/v1/admin', adminRouter);
+
+// ─── Phase 4: Approval engine routes ──────────────────────────────────────────
+app.use('/api/v1', approvalsRouter);
 
 // ─── Legacy welcome endpoint ─────────────────────────────────────────────────
 app.get('/api/v1/welcome', requireAuth, (req, res) => {

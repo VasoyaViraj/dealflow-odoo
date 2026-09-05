@@ -20,7 +20,6 @@
 import { and, asc, desc, eq, gte, inArray, lte, sql } from 'drizzle-orm';
 import { db } from '../../db/index.js';
 import {
-  approvalRules,
   auditLogs,
   categoryDiscountLimits,
   customers,
@@ -51,7 +50,7 @@ import {
 } from './discountPolicy.js';
 import { QuotationError, notFound } from './errors.js';
 import { percent, toNumber } from './money.js';
-import { assessRisk, type ApprovalRule } from './riskPolicy.js';
+import { submitForApproval } from '../approvalEngine.js';
 import { UUID_RE, validateDiscount, validateQuantity } from './validation.js';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -96,7 +95,10 @@ export interface ListQuotationsFilters {
 // ─── Constants ───────────────────────────────────────────────────────────────
 
 /** Statuses in which commercial inputs may still be changed. */
-const EDITABLE_STATUSES = new Set(['DRAFT']);
+// REVISION_REQUESTED is editable so the rep can act on a reviewer's feedback:
+// Phase 4 leaves the quotation in REVISION_REQUESTED (it never reverts it to
+// DRAFT), and submitForApproval accepts it as a resubmittable state.
+const EDITABLE_STATUSES = new Set(['DRAFT', 'REVISION_REQUESTED']);
 
 // ─── Public commands ─────────────────────────────────────────────────────────
 
@@ -159,10 +161,9 @@ export async function listQuotations(actor: AuthUser, filters: ListQuotationsFil
       grandTotal: quotations.grandTotal,
       totalCost: quotations.totalCost,
       margin: quotations.margin,
-      marginPct: quotations.marginPct,
-      blendedRiskScore: quotations.blendedRiskScore,
-      requiresApproval: quotations.requiresApproval,
-      requiredApprovalLevel: quotations.requiredApprovalLevel,
+      marginPercent: quotations.marginPercent,
+      riskScore: quotations.riskScore,
+      approvalLevel: quotations.approvalLevel,
       version: quotations.version,
       submittedAt: quotations.submittedAt,
       createdAt: quotations.createdAt,
@@ -260,7 +261,7 @@ export async function addLine(actor: AuthUser, quotationId: string, input: AddLi
         unitCost: product.costPrice,
         taxRate: product.taxRate,
         quantity,
-        discountPct,
+        discountPercent: discountPct,
       })
       .returning();
 
@@ -293,7 +294,7 @@ export async function updateLine(
     const patch: Record<string, unknown> = { updatedAt: new Date() };
     if (input.quantity !== undefined) patch.quantity = validateQuantity(input.quantity);
     if (input.discountPercent !== undefined) {
-      patch.discountPct = percent(validateDiscount(input.discountPercent, 'discountPercent'));
+      patch.discountPercent = percent(validateDiscount(input.discountPercent, 'discountPercent'));
     }
 
     await tx.update(quotationLines).set(patch).where(eq(quotationLines.id, line.id));
@@ -360,18 +361,37 @@ export async function recalculate(actor: AuthUser, quotationId: string) {
   });
 }
 
-/** FR-08 — DRAFT → SUBMITTED. The only transition Phase 3 performs. */
+/**
+ * FR-08 — submit a quotation for approval.
+ *
+ * This is the single integration point between the Phase 3 builder and the
+ * Phase 4 approval engine. The builder owns everything up to the handoff —
+ * authorization, the optimistic-locking check, the "not empty" guard, and a
+ * final recalculation so the figures the approver sees are provably current —
+ * and then hands the quotation to `submitForApproval`, which owns every status
+ * transition from here on (doc/phase4/AGENTS.md).
+ *
+ * The builder deliberately does NOT set the status itself. Writing SUBMITTED
+ * here would strand the quotation: the approval engine only accepts DRAFT or
+ * REVISION_REQUESTED as a starting state, so a self-submitted quotation could
+ * never enter the approval flow.
+ *
+ * The two steps are separate transactions because `submitForApproval` opens
+ * its own. The recalculation is idempotent and writes no status, so a failure
+ * in the approval step leaves the quotation a valid, unsubmitted DRAFT that
+ * the rep can simply submit again.
+ */
 export async function submitQuotation(
   actor: AuthUser,
   quotationId: string,
   expectedVersion?: number,
 ) {
-  return db.transaction(async (tx) => {
+  await db.transaction(async (tx) => {
     const quotation = await loadAuthorizedQuotation(tx, quotationId, actor);
     assertMutable(actor, quotation);
     assertVersion(quotation, expectedVersion);
 
-    if (quotation.status !== 'DRAFT') {
+    if (quotation.status !== 'DRAFT' && quotation.status !== 'REVISION_REQUESTED') {
       throw new QuotationError(
         'INVALID_STATE_TRANSITION',
         `A quotation in status ${quotation.status} cannot be submitted`,
@@ -391,23 +411,39 @@ export async function submitQuotation(
     }
 
     // Recalculate first so the submitted figures are provably current, not
-    // whatever was last written.
-    const totals = await recalculateAndPersist(tx, quotationId);
+    // whatever was last written. The risk engine reads these line totals.
+    await recalculateAndPersist(tx, quotationId);
 
     await tx
       .update(quotations)
-      .set({ status: 'SUBMITTED', submittedAt: new Date(), updatedAt: new Date() })
+      .set({ submittedAt: new Date(), updatedAt: new Date() })
       .where(eq(quotations.id, quotationId));
-
-    await logAudit(tx, actor, 'QUOTATION_SUBMITTED', quotationId, {
-      grandTotal: totals.grandTotal,
-      margin: totals.margin,
-      blendedRiskScore: totals.blendedRiskScore,
-      requiredApprovalLevel: totals.requiredApprovalLevel,
-    });
-
-    return hydrate(tx, quotationId, actor);
   });
+
+  // Phase 4 scores the discount risk, routes the quotation to the right
+  // approval level, and writes status / riskScore / approvalLevel plus its own
+  // audit entry — all atomically, inside its own transaction.
+  try {
+    await submitForApproval(quotationId, actor.id);
+  } catch (err) {
+    throw translateApprovalError(err);
+  }
+
+  return hydrate(db, quotationId, actor);
+}
+
+/**
+ * The approval engine throws plain `Error`s. Map them onto the quotation error
+ * codes so the router returns the same envelope and status code as every other
+ * quotation failure instead of a bare 500.
+ */
+function translateApprovalError(err: unknown): unknown {
+  if (!(err instanceof Error)) return err;
+  if (/not found/i.test(err.message)) return notFound();
+  if (/cannot be submitted from status/i.test(err.message)) {
+    return new QuotationError('INVALID_STATE_TRANSITION', err.message);
+  }
+  return err;
 }
 
 // ─── Calculation ─────────────────────────────────────────────────────────────
@@ -438,7 +474,7 @@ async function recalculateAndPersist(tx: Tx, quotationId: string) {
     .where(eq(quotationLines.quotationId, quotationId))
     .orderBy(asc(quotationLines.lineNumber));
 
-  const { config, rules } = await loadDiscountGovernance(tx);
+  const { config } = await loadDiscountGovernance(tx);
 
   const calculatorInputs: CalculatorLineInput[] = lines.map((line) => ({
     ref: line.id,
@@ -447,7 +483,7 @@ async function recalculateAndPersist(tx: Tx, quotationId: string) {
     unitPrice: line.unitPrice,
     unitCost: line.unitCost,
     taxRate: line.taxRate,
-    discountPct: line.discountPct,
+    discountPct: line.discountPercent,
     maxDiscountPct: resolveMaxDiscountPct(
       config,
       quotation.tier as CustomerTier,
@@ -459,8 +495,6 @@ async function recalculateAndPersist(tx: Tx, quotationId: string) {
     lines: calculatorInputs,
     quotationDiscountPct: quotation.quotationDiscountPct,
   });
-
-  const risk = assessRisk(calculated.lines, rules);
 
   await persistLineTotals(tx, calculated.lines);
 
@@ -476,17 +510,14 @@ async function recalculateAndPersist(tx: Tx, quotationId: string) {
       grandTotal: calculated.totals.grandTotal,
       totalCost: calculated.totals.totalCost,
       margin: calculated.totals.margin,
-      marginPct: calculated.totals.marginPct,
-      blendedRiskScore: risk.blendedRiskScore,
-      requiresApproval: risk.requiresApproval,
-      requiredApprovalLevel: risk.requiredApprovalLevel,
+      marginPercent: calculated.totals.marginPct,
       version: sql`${quotations.version} + 1`,
       updatedAt: new Date(),
     })
     .where(eq(quotations.id, quotationId))
     .returning();
 
-  return { ...calculated.totals, ...risk, version: updated.version };
+  return { ...calculated.totals, version: updated.version };
 }
 
 /**
@@ -535,18 +566,19 @@ async function persistLineTotals(
 }
 
 /**
- * Load the admin-managed discount configuration and approval ladder.
+ * Load the admin-managed discount ceilings.
  * Read on every calculation so an admin's change to a tier limit takes effect
  * on the very next recalculation, with no restart and no cache to invalidate.
+ *
+ * The approval ladder (approval_rules) is deliberately NOT read here: mapping a
+ * risk score to an approval level belongs to Phase 4's engine, which reads that
+ * table itself. The builder only needs the ceilings, so it can report per-line
+ * over-limit deviations in the DTO.
  */
-async function loadDiscountGovernance(tx: Tx): Promise<{
-  config: DiscountConfig;
-  rules: ApprovalRule[];
-}> {
-  const [tierRows, categoryRows, ruleRows] = await Promise.all([
+async function loadDiscountGovernance(tx: Tx): Promise<{ config: DiscountConfig }> {
+  const [tierRows, categoryRows] = await Promise.all([
     tx.select().from(discountTierConfigs),
     tx.select().from(categoryDiscountLimits),
-    tx.select().from(approvalRules).where(eq(approvalRules.isActive, true)),
   ]);
 
   const config: DiscountConfig = { tierLimits: {}, categoryLimits: {} };
@@ -555,13 +587,7 @@ async function loadDiscountGovernance(tx: Tx): Promise<{
     config.categoryLimits[row.category as ProductCategory] = row.maxDiscountPct;
   }
 
-  return {
-    config,
-    rules: ruleRows.map((r) => ({
-      riskScoreThreshold: r.riskScoreThreshold,
-      approvalLevel: r.approvalLevel,
-    })),
-  };
+  return { config };
 }
 
 // ─── Loading and guards ──────────────────────────────────────────────────────
@@ -785,10 +811,11 @@ async function hydrate(tx: Tx, quotationId: string, actor: AuthUser) {
       ? {
           totalCost: toNumber(q.totalCost),
           margin: toNumber(q.margin),
-          marginPercent: toNumber(q.marginPct),
-          blendedRiskScore: toNumber(q.blendedRiskScore),
-          requiresApproval: q.requiresApproval,
-          requiredApprovalLevel: q.requiredApprovalLevel,
+          marginPercent: toNumber(q.marginPercent),
+          // Written by Phase 4's approval engine, never by the builder.
+          riskScore: toNumber(q.riskScore),
+          approvalLevel: q.approvalLevel,
+          requiresApproval: q.approvalLevel !== 'NONE',
         }
       : {}),
 
@@ -808,7 +835,7 @@ async function hydrate(tx: Tx, quotationId: string, actor: AuthUser) {
       quantity: line.quantity,
       unitPrice: toNumber(line.unitPrice),
       taxRate: toNumber(line.taxRate),
-      discountPercent: toNumber(line.discountPct),
+      discountPercent: toNumber(line.discountPercent),
 
       grossAmount: toNumber(line.grossAmount),
       discountAmount: toNumber(line.discountAmount),
@@ -823,7 +850,7 @@ async function hydrate(tx: Tx, quotationId: string, actor: AuthUser) {
             unitCost: toNumber(line.unitCost),
             cost: toNumber(line.cost),
             margin: toNumber(line.margin),
-            marginPercent: toNumber(line.marginPct),
+            marginPercent: toNumber(line.marginPercent),
             maxDiscountPercent: toNumber(line.maxDiscountPct),
             discountOverLimitPercent: toNumber(line.discountOverLimitPct),
             isOverDiscountLimit: Number(line.discountOverLimitPct) > 0,
@@ -850,10 +877,9 @@ type SummaryRow = {
   grandTotal: string;
   totalCost: string;
   margin: string;
-  marginPct: string;
-  blendedRiskScore: string;
-  requiresApproval: boolean;
-  requiredApprovalLevel: string;
+  marginPercent: string;
+  riskScore: string;
+  approvalLevel: string;
   version: number;
   submittedAt: Date | null;
   createdAt: Date;
@@ -877,10 +903,10 @@ function serializeSummary(row: SummaryRow, actor: AuthUser) {
       ? {
           totalCost: toNumber(row.totalCost),
           margin: toNumber(row.margin),
-          marginPercent: toNumber(row.marginPct),
-          blendedRiskScore: toNumber(row.blendedRiskScore),
-          requiresApproval: row.requiresApproval,
-          requiredApprovalLevel: row.requiredApprovalLevel,
+          marginPercent: toNumber(row.marginPercent),
+          riskScore: toNumber(row.riskScore),
+          approvalLevel: row.approvalLevel,
+          requiresApproval: row.approvalLevel !== 'NONE',
         }
       : {}),
     version: row.version,

@@ -235,21 +235,50 @@ export const priceListItems = pgTable('price_list_items', {
   uniqueIndex('price_list_product_idx').on(table.priceListId, table.productId),
 ]);
 
-// ─── Phase 3 Tables — Quotation Engine ───────────────────────────────────────
+// ─── Quotation Engine — Phase 3 builder + Phase 4 risk/approval ──────────────
+//
+// These three tables were defined independently on the Phase 3 and Phase 4
+// branches and are reconciled here into one set. Where both branches named the
+// same concept differently, Phase 4's name wins, so that approvalEngine.ts and
+// discountRiskEngine.ts run against this schema unmodified:
+//
+//   Phase 3 blendedRiskScore      → riskScore
+//   Phase 3 requiredApprovalLevel → approvalLevel
+//   Phase 3 marginPct             → marginPercent
+//   Phase 3 line discountPct      → discountPercent
+//
+// Phase 3's additional columns (quotation numbering, per-line tax, catalogue
+// snapshots, optimistic locking) are kept: they carry the builder's semantics
+// and nothing in Phase 4 conflicts with them.
 
 /**
- * Quotation lifecycle. Phase 3 only ever transitions DRAFT → SUBMITTED
- * (see STATE_MACHINES.md). The remaining values are declared up front so that
- * Phase 4's approval workflow does not need a Postgres enum migration —
- * nothing in Phase 3 writes them.
+ * Quotation lifecycle — the union of both branches' states.
+ *
+ * DRAFT → (submit) → APPROVED | PENDING_MANAGER → PENDING_FINANCE → APPROVED,
+ * with REJECTED and REVISION_REQUESTED as reviewer outcomes. Phase 4's
+ * approvalEngine owns every transition from submit onward; Phase 3 only ever
+ * writes DRAFT. SUBMITTED and RISK_CALCULATED are declared because the Phase 4
+ * state machine documents them, though its engine transitions straight past
+ * them in a single write. EXPIRED and CANCELLED are reserved for a later phase
+ * and nothing writes them today.
  */
 export const quotationStatusEnum = pgEnum('quotation_status', [
   'DRAFT',
   'SUBMITTED',
+  'RISK_CALCULATED',
+  'PENDING_MANAGER',
+  'PENDING_FINANCE',
   'APPROVED',
   'REJECTED',
+  'REVISION_REQUESTED',
   'EXPIRED',
   'CANCELLED',
+]);
+
+export const approvalDecisionEnum = pgEnum('approval_decision', [
+  'APPROVED',
+  'REJECTED',
+  'REVISION_REQUESTED',
 ]);
 
 /**
@@ -261,6 +290,9 @@ export const quotationStatusEnum = pgEnum('quotation_status', [
  * rather than computed on read so that list endpoints and Phase 7 reporting do
  * not have to re-run the calculator, and they are fully reproducible by
  * POST /quotations/:id/recalculate.
+ *
+ * riskScore / approvalLevel are written exclusively by Phase 4's approval
+ * engine. The builder reads them but never sets them.
  *
  * priceListId is a deliberate hook for a later phase: Phase 3 always prices
  * from products.unit_price and never resolves the price list.
@@ -293,12 +325,12 @@ export const quotations = pgTable('quotations', {
   grandTotal: numeric('grand_total', { precision: 14, scale: 2 }).notNull().default('0'),
   totalCost: numeric('total_cost', { precision: 14, scale: 2 }).notNull().default('0'),
   margin: numeric('margin', { precision: 14, scale: 2 }).notNull().default('0'),
-  marginPct: numeric('margin_pct', { precision: 7, scale: 2 }).notNull().default('0'),
+  // (7,2) rather than Phase 4's (5,2): a heavily-costed deal can exceed 999.99%.
+  marginPercent: numeric('margin_percent', { precision: 7, scale: 2 }).notNull().default('0'),
 
-  // ─ Discount governance (advisory in Phase 3, consumed by Phase 4) ─
-  blendedRiskScore: numeric('blended_risk_score', { precision: 7, scale: 2 }).notNull().default('0'),
-  requiresApproval: boolean('requires_approval').notNull().default(false),
-  requiredApprovalLevel: text('required_approval_level').notNull().default('NONE'),
+  // ─ Discount governance — written by Phase 4's approval engine ─
+  riskScore: numeric('risk_score', { precision: 7, scale: 2 }).notNull().default('0'),
+  approvalLevel: text('approval_level').notNull().default('NONE'),
 
   // Optimistic locking — bumped on every mutation (TRD §6).
   version: integer('version').notNull().default(1),
@@ -321,7 +353,7 @@ export const quotations = pgTable('quotations', {
  * products.unit_price must not silently restate an existing quotation, and
  * BUSINESS_RULES requires totals to stay reproducible from stored line inputs.
  *
- * Client-writable inputs are exactly: productId, quantity, discountPct.
+ * Client-writable inputs are exactly: productId, quantity, discountPercent.
  * Everything else is server-derived — cost in particular is never accepted
  * from the browser (TRD §10).
  */
@@ -348,7 +380,7 @@ export const quotationLines = pgTable('quotation_lines', {
 
   // ─ Commercial inputs ─
   quantity: integer('quantity').notNull(),
-  discountPct: numeric('discount_pct', { precision: 5, scale: 2 }).notNull().default('0'),
+  discountPercent: numeric('discount_percent', { precision: 5, scale: 2 }).notNull().default('0'),
 
   // ─ Derived, per FR-05 ─
   grossAmount: numeric('gross_amount', { precision: 14, scale: 2 }).notNull().default('0'),
@@ -356,7 +388,7 @@ export const quotationLines = pgTable('quotation_lines', {
   finalPrice: numeric('final_price', { precision: 14, scale: 2 }).notNull().default('0'),
   cost: numeric('cost', { precision: 14, scale: 2 }).notNull().default('0'),
   margin: numeric('margin', { precision: 14, scale: 2 }).notNull().default('0'),
-  marginPct: numeric('margin_pct', { precision: 7, scale: 2 }).notNull().default('0'),
+  marginPercent: numeric('margin_percent', { precision: 7, scale: 2 }).notNull().default('0'),
 
   // ─ Derived, after the quotation-level discount is spread over lines ─
   allocatedDiscountAmount: numeric('allocated_discount_amount', { precision: 14, scale: 2 }).notNull().default('0'),
@@ -374,6 +406,25 @@ export const quotationLines = pgTable('quotation_lines', {
   index('quotation_lines_quotation_idx').on(table.quotationId),
   index('quotation_lines_product_idx').on(table.productId),
 ]);
+
+/**
+ * quotation_approvals — Audit trail of every approval decision.
+ * Each row records a single approve / reject / revision-request action.
+ * Append-only (BR-P4-014): rows are never updated or deleted.
+ */
+export const quotationApprovals = pgTable('quotation_approvals', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  quotationId: uuid('quotation_id')
+    .notNull()
+    .references(() => quotations.id, { onDelete: 'cascade' }),
+  approverId: uuid('approver_id')
+    .notNull()
+    .references(() => users.id),
+  approvalLevel: text('approval_level').notNull(), // 'SALES_MANAGER' | 'FINANCE'
+  decision: approvalDecisionEnum('decision').notNull(),
+  reason: text('reason'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
 
 /**
  * quotation_sequence — single-row counter backing human-readable quotation

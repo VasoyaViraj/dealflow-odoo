@@ -27,6 +27,8 @@ export default function FinanceDashboard() {
   const [refreshing, setRefreshing] = useState(false);
   const [payingId, setPayingId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const [sortBy, setSortBy] = useState('updatedAt');
+  const [sortOrder, setSortOrder] = useState('desc');
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
 
   const showToast = useCallback((msg: string, type: 'success' | 'error' = 'success') => {
@@ -34,9 +36,17 @@ export default function FinanceDashboard() {
     setTimeout(() => setToast(null), 4000);
   }, []);
 
-  const loadQueue = useCallback(async (page = 1, searchQuery = search) => {
+  const loadQueue = useCallback(async (page = 1, searchQuery = search, sortField = sortBy, order = sortOrder) => {
     try {
-      const r = await api.get('/approval-queue', { params: { limit: 12, page, search: searchQuery || undefined } });
+      const r = await api.get('/approval-queue', { 
+        params: { 
+          limit: 12, 
+          page, 
+          search: searchQuery || undefined,
+          sortBy: sortField,
+          sortOrder: order
+        } 
+      });
       setQueue(r.data.data);
       if (r.data.pagination) {
         setQueueTotalPages(r.data.pagination.totalPages || 1);
@@ -66,12 +76,12 @@ export default function FinanceDashboard() {
     }
   }, []);
 
-  useEffect(() => { loadQueue(1, search); }, [loadQueue, search]);
+  useEffect(() => { loadQueue(1, search, sortBy, sortOrder); }, [loadQueue, search, sortBy, sortOrder]);
   useEffect(() => { loadInvoices(1); }, [loadInvoices]);
 
   const refresh = () => {
     setRefreshing(true);
-    loadQueue(queuePage, search);
+    loadQueue(queuePage, search, sortBy, sortOrder);
     loadInvoices(invoicePage);
   };
 
@@ -163,13 +173,32 @@ export default function FinanceDashboard() {
                   </p>
                 </div>
               </div>
-              <input
-                type="text"
-                placeholder="Filter by customer name..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="bg-canvas border border-hairline rounded-lg px-3 py-1.5 text-sm text-ink focus:outline-none focus:border-ink min-w-64 self-end mb-4"
-              />
+              <div className="flex items-center gap-2 self-end mb-4">
+                <select 
+                  value={sortBy} 
+                  onChange={e => setSortBy(e.target.value)}
+                  className="bg-canvas border border-hairline rounded-lg px-3 py-1.5 text-sm text-ink focus:outline-none focus:border-ink"
+                >
+                  <option value="updatedAt">Date Updated</option>
+                  <option value="grandTotal">Grand Total</option>
+                  <option value="riskScore">Risk Score</option>
+                </select>
+                <select 
+                  value={sortOrder} 
+                  onChange={e => setSortOrder(e.target.value)}
+                  className="bg-canvas border border-hairline rounded-lg px-3 py-1.5 text-sm text-ink focus:outline-none focus:border-ink"
+                >
+                  <option value="desc">Desc</option>
+                  <option value="asc">Asc</option>
+                </select>
+                <input
+                  type="text"
+                  placeholder="Filter by customer name..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="bg-canvas border border-hairline rounded-lg px-3 py-1.5 text-sm text-ink focus:outline-none focus:border-ink min-w-48"
+                />
+              </div>
             </div>
 
             {loadingQueue ? (

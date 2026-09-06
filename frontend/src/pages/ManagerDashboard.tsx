@@ -29,11 +29,21 @@ export default function ManagerDashboard() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState('');
+  const [sortBy, setSortBy] = useState('updatedAt');
+  const [sortOrder, setSortOrder] = useState('desc');
 
-  const load = useCallback(async (page = 1, searchQuery = search) => {
+  const load = useCallback(async (page = 1, searchQuery = search, sortField = sortBy, order = sortOrder) => {
     try {
       const [queueRes, healthRes] = await Promise.all([
-        api.get('/approval-queue', { params: { limit: 12, page, search: searchQuery || undefined } }),
+        api.get('/approval-queue', { 
+          params: { 
+            limit: 12, 
+            page, 
+            search: searchQuery || undefined,
+            sortBy: sortField,
+            sortOrder: order
+          } 
+        }),
         api.get('/dashboard/deal-health')
       ]);
       setQueue(queueRes.data.data);
@@ -50,11 +60,11 @@ export default function ManagerDashboard() {
     }
   }, []);
 
-  useEffect(() => { load(1, search); }, [load, search]);
+  useEffect(() => { load(1, search, sortBy, sortOrder); }, [load, search, sortBy, sortOrder]);
 
   const refresh = () => {
     setRefreshing(true);
-    load(currentPage, search);
+    load(currentPage, search, sortBy, sortOrder);
   };
 
   const handleDecision = () => {
@@ -151,13 +161,32 @@ export default function ManagerDashboard() {
             <div>
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-semibold text-ink">Approval Queue</h2>
-                <input
-                  type="text"
-                  placeholder="Filter by customer name..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="bg-canvas border border-hairline rounded-lg px-3 py-1.5 text-sm text-ink focus:outline-none focus:border-ink min-w-64"
-                />
+                <div className="flex items-center gap-2">
+                  <select 
+                    value={sortBy} 
+                    onChange={e => setSortBy(e.target.value)}
+                    className="bg-canvas border border-hairline rounded-lg px-3 py-1.5 text-sm text-ink focus:outline-none focus:border-ink"
+                  >
+                    <option value="updatedAt">Date Updated</option>
+                    <option value="grandTotal">Grand Total</option>
+                    <option value="riskScore">Risk Score</option>
+                  </select>
+                  <select 
+                    value={sortOrder} 
+                    onChange={e => setSortOrder(e.target.value)}
+                    className="bg-canvas border border-hairline rounded-lg px-3 py-1.5 text-sm text-ink focus:outline-none focus:border-ink"
+                  >
+                    <option value="desc">Desc</option>
+                    <option value="asc">Asc</option>
+                  </select>
+                  <input
+                    type="text"
+                    placeholder="Filter by customer name..."
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    className="bg-canvas border border-hairline rounded-lg px-3 py-1.5 text-sm text-ink focus:outline-none focus:border-ink min-w-48"
+                  />
+                </div>
               </div>
               {queue.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12 text-center bg-soft border border-hairline rounded-xl">

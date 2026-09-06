@@ -14,7 +14,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { calculateRisk } from '../services/discountRiskEngine.js';
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq, sql, asc, desc } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { quotations, customers } from '../db/schema.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
@@ -34,6 +34,8 @@ const queueQuerySchema = z.object({
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().positive().max(100).default(20),
   search: z.string().optional(),
+  sortBy: z.enum(['updatedAt', 'grandTotal', 'riskScore']).default('updatedAt'),
+  sortOrder: z.enum(['asc', 'desc']).default('asc'),
 });
 
 /**
@@ -231,10 +233,15 @@ router.get(
         return res.json({ success: true, data: [] });
       }
 
-      const { search } = parsed.data;
+      const { search, sortBy, sortOrder } = parsed.data;
       const condition = search 
         ? and(statusFilter, sql`${customers.name} ILIKE ${'%' + search + '%'}`) 
         : statusFilter;
+
+      let orderClause;
+      if (sortBy === 'grandTotal') orderClause = sortOrder === 'desc' ? desc(quotations.grandTotal) : asc(quotations.grandTotal);
+      else if (sortBy === 'riskScore') orderClause = sortOrder === 'desc' ? desc(quotations.riskScore) : asc(quotations.riskScore);
+      else orderClause = sortOrder === 'desc' ? desc(quotations.updatedAt) : asc(quotations.updatedAt);
 
       const [{ count }] = await db
         .select({ count: sql<number>`count(*)` })
@@ -258,7 +265,7 @@ router.get(
         .from(quotations)
         .leftJoin(customers, eq(quotations.customerId, customers.id))
         .where(condition)
-        .orderBy(quotations.updatedAt)
+        .orderBy(orderClause)
         .limit(limit)
         .offset(offset);
 

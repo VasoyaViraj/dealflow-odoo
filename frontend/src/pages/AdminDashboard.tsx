@@ -3,13 +3,21 @@ import AppShell from '../components/layout/AppShell';
 import api from '../lib/api';
 import {
   Users, Package, Percent, Warehouse, RefreshCw, Truck,
-  Plus, Pencil, Check, X, AlertCircle, Boxes, BarChart3, Download
+  Plus, Pencil, Check, X, AlertCircle, Boxes, BarChart3, Download, Link2
 } from 'lucide-react';
 import Loader from '../components/ui/Loader';
+import PortalCredentialsDialog from '../components/ui/PortalCredentialsDialog';
+import { errorMessage, readCustomerResult } from '../lib/customers';
+import type { CustomerCreateResult, PortalUser } from '../lib/customers';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-interface Customer { id: string; name: string; email: string; phone?: string; tier: string; isActive: boolean; }
+interface Customer {
+  id: string; name: string; email: string; phone?: string; address?: string | null;
+  tier: string; isActive: boolean; linkedUserId?: string | null;
+  /** Joined in by GET /admin/customers so the table can show the link. */
+  portalUser?: PortalUser | null;
+}
 interface Product { id: string; name: string; sku?: string; category: string; unitPrice: string; costPrice: string; taxRate: string; isActive: boolean; }
 interface DiscountTier { id: string; tier: string; maxDiscountPct: string; }
 interface CategoryLimit { id: string; category: string; maxDiscountPct: string; }
@@ -211,11 +219,33 @@ export default function AdminDashboard() {
 
 // ─── Customers Tab ────────────────────────────────────────────────────────────
 
+const EMPTY_CUSTOMER_FORM = {
+  name: '',
+  contactFirstName: '',
+  contactLastName: '',
+  email: '',
+  phone: '',
+  address: '',
+  tier: 'SILVER',
+  password: '',
+};
+
+/**
+ * Customer master data. Creating a customer here provisions its portal
+ * (CUSTOMER-role) user in the same transaction and links the two rows; the
+ * "Portal Login" column plus its Create/Link action are the only place that
+ * relationship is visible or repairable from the UI.
+ */
 function CustomersTab({ showToast }: { showToast: (m: string, t?: 'success' | 'error') => void }) {
   const [rows, setRows] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ name: '', email: '', phone: '', tier: 'SILVER' });
+  const [form, setForm] = useState(EMPTY_CUSTOMER_FORM);
+  const [createPortalUser, setCreatePortalUser] = useState(true);
+  const [setOwnPassword, setSetOwnPassword] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [linkingId, setLinkingId] = useState<string | null>(null);
+  const [result, setResult] = useState<CustomerCreateResult | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -225,23 +255,59 @@ function CustomersTab({ showToast }: { showToast: (m: string, t?: 'success' | 'e
 
   useEffect(() => { load(); }, [load]);
 
+  const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+    setForm(f => ({ ...f, [k]: e.target.value }));
+
+  const canSubmit =
+    form.name.trim() !== '' &&
+    form.email.trim() !== '' &&
+    (!createPortalUser || !setOwnPassword || form.password.length >= 8);
+
   const create = async () => {
+    if (!canSubmit) { showToast('Company name and email are required', 'error'); return; }
+    setSaving(true);
     try {
-      await api.post('/admin/customers', form);
+      const r = await api.post('/admin/customers', {
+        ...form,
+        password: createPortalUser && setOwnPassword ? form.password : undefined,
+        createPortalUser,
+      });
+      setResult(readCustomerResult(r.data));
       showToast(`Customer "${form.name}" created`);
       setShowForm(false);
-      setForm({ name: '', email: '', phone: '', tier: 'SILVER' });
+      setForm(EMPTY_CUSTOMER_FORM);
+      setSetOwnPassword(false);
+      setCreatePortalUser(true);
       load();
-    } catch (e: any) {
-      showToast(e?.response?.data?.error ?? 'Failed to create customer', 'error');
-    }
+    } catch (e) {
+      showToast(errorMessage(e, 'Failed to create customer'), 'error');
+    } finally { setSaving(false); }
+  };
+
+  /** Backfills a portal login for a customer that has none. */
+  const linkPortalUser = async (c: Customer) => {
+    setLinkingId(c.id);
+    try {
+      const r = await api.post(`/admin/customers/${c.id}/portal-user`, {});
+      setResult(readCustomerResult(r.data));
+      showToast(`Portal login ready for "${c.name}"`);
+      load();
+    } catch (e) {
+      showToast(errorMessage(e, 'Failed to create portal login'), 'error');
+    } finally { setLinkingId(null); }
   };
 
   const updateTier = async (id: string, tier: string) => {
-    await api.put(`/admin/customers/${id}`, { tier });
-    showToast('Tier updated');
-    load();
+    try {
+      await api.put(`/admin/customers/${id}`, { tier });
+      showToast('Tier updated');
+      load();
+    } catch (e) {
+      showToast(errorMessage(e, 'Failed to update tier'), 'error');
+    }
   };
+
+  const input = 'bg-strong border border-hairline rounded-lg px-3 py-2 text-sm text-ink focus:outline-none focus:border-ink';
 
   return (
     <div>
@@ -249,19 +315,49 @@ function CustomersTab({ showToast }: { showToast: (m: string, t?: 'success' | 'e
 
       {showForm && (
         <div className="bg-soft border border-hairline rounded-md p-5 mb-5 grid grid-cols-4 gap-3">
-          <input placeholder="Company name" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-            className="bg-strong border border-hairline rounded-lg px-3 py-2 text-sm text-ink focus:outline-none focus:border-ink" />
-          <input placeholder="Email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
-            className="bg-strong border border-hairline rounded-lg px-3 py-2 text-sm text-ink focus:outline-none focus:border-ink" />
-          <input placeholder="Phone (optional)" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
-            className="bg-strong border border-hairline rounded-lg px-3 py-2 text-sm text-ink focus:outline-none focus:border-ink" />
-          <select value={form.tier} onChange={e => setForm(f => ({ ...f, tier: e.target.value }))}
-            className="bg-strong border border-hairline rounded-lg px-3 py-2 text-sm text-ink focus:outline-none focus:border-ink">
-            <option>BRONZE</option><option>SILVER</option><option>GOLD</option>
+          <input placeholder="Company name *" value={form.name} onChange={set('name')} className={input} />
+          <input placeholder="Email *" type="email" value={form.email} onChange={set('email')} className={input} />
+          <input placeholder="Contact first name" value={form.contactFirstName} onChange={set('contactFirstName')} className={input} />
+          <input placeholder="Contact last name" value={form.contactLastName} onChange={set('contactLastName')} className={input} />
+          <input placeholder="Phone (optional)" value={form.phone} onChange={set('phone')} className={input} />
+          <input placeholder="Address (optional)" value={form.address} onChange={set('address')} className={`${input} col-span-2`} />
+          <select value={form.tier} onChange={set('tier')} className={input}>
+            <option value="BRONZE">BRONZE</option>
+            <option value="SILVER">SILVER</option>
+            <option value="GOLD">GOLD</option>
           </select>
+
+          <div className="col-span-4 flex flex-wrap items-center gap-x-6 gap-y-2 border-t border-hairline pt-3">
+            <label className="flex items-center gap-2 text-sm text-ink cursor-pointer">
+              <input type="checkbox" checked={createPortalUser} onChange={e => setCreatePortalUser(e.target.checked)} />
+              Create portal login (adds a CUSTOMER user and links it)
+            </label>
+            {createPortalUser && (
+              <label className="flex items-center gap-2 text-sm text-subtle cursor-pointer">
+                <input type="checkbox" checked={setOwnPassword} onChange={e => setSetOwnPassword(e.target.checked)} />
+                Set password myself
+              </label>
+            )}
+            {createPortalUser && setOwnPassword && (
+              <input placeholder="Password (min 8 chars)" value={form.password} onChange={set('password')} className={`${input} flex-1 min-w-48`} />
+            )}
+          </div>
+
+          {createPortalUser && !setOwnPassword && (
+            <p className="col-span-4 text-xs text-subtle flex items-center gap-1.5">
+              <AlertCircle size={12} /> A password will be generated and shown once after saving.
+            </p>
+          )}
+
           <div className="col-span-4 flex gap-2 justify-end">
             <button onClick={() => setShowForm(false)} className="px-4 py-2 text-sm text-subtle hover:text-ink">Cancel</button>
-            <button onClick={create} className="px-4 py-2 bg-ink hover:bg-ink-active text-white text-sm rounded-lg font-medium">Save</button>
+            <button
+              onClick={create}
+              disabled={saving || !canSubmit}
+              className="px-4 py-2 bg-ink hover:bg-ink-active text-white text-sm rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {saving ? 'Saving…' : 'Save'}
+            </button>
           </div>
         </div>
       )}
@@ -274,6 +370,7 @@ function CustomersTab({ showToast }: { showToast: (m: string, t?: 'success' | 'e
             <tr className="border-b border-hairline text-subtle text-left">
               <th className="pb-3 pr-4 font-medium">Company</th>
               <th className="pb-3 pr-4 font-medium">Email</th>
+              <th className="pb-3 pr-4 font-medium">Portal Login</th>
               <th className="pb-3 pr-4 font-medium">Tier</th>
               <th className="pb-3 font-medium">Status</th>
             </tr>
@@ -283,6 +380,23 @@ function CustomersTab({ showToast }: { showToast: (m: string, t?: 'success' | 'e
               <tr key={r.id} className="border-b border-hairline hover:bg-soft transition">
                 <td className="py-3 pr-4 font-medium text-ink">{r.name}</td>
                 <td className="py-3 pr-4 text-subtle">{r.email}</td>
+                <td className="py-3 pr-4">
+                  {r.portalUser ? (
+                    <span className="inline-flex items-center gap-1.5 text-xs text-success">
+                      <Link2 size={12} />
+                      {r.portalUser.email}
+                    </span>
+                  ) : (
+                    <button
+                      onClick={() => linkPortalUser(r)}
+                      disabled={linkingId === r.id}
+                      className="inline-flex items-center gap-1.5 text-xs text-link hover:underline disabled:opacity-50"
+                    >
+                      <Link2 size={12} />
+                      {linkingId === r.id ? 'Linking…' : 'Create / link login'}
+                    </button>
+                  )}
+                </td>
                 <td className="py-3 pr-4">
                   <select
                     value={r.tier}
@@ -305,6 +419,8 @@ function CustomersTab({ showToast }: { showToast: (m: string, t?: 'success' | 'e
           </tbody>
         </table>
       )}
+
+      {result && <PortalCredentialsDialog result={result} onClose={() => setResult(null)} />}
     </div>
   );
 }

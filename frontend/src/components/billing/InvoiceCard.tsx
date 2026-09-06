@@ -50,6 +50,7 @@ function StatusPill({ status }: { status: Invoice['status'] }) {
 // ─── Line rows ────────────────────────────────────────────────────────────────
 
 function LineRows({ lines }: { lines: InvoiceLineSnapshot[] }) {
+  if (!lines) return null;
   return (
     <div className="mt-4 border border-hairline rounded-md overflow-hidden">
       <table className="w-full text-xs">

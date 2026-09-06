@@ -174,9 +174,9 @@ export async function generateInvoice(quotationId: string, userId: string) {
 
   const lineSnapshot = oneTimeLines.map(l => {
     const gross = new Decimal(l.grossAmount);
-    const disc  = new Decimal(l.discountAmount);
-    const net   = gross.minus(disc);
-    const tax   = net.times(new Decimal(l.taxRate).div(100));
+    const disc = new Decimal(l.discountAmount);
+    const net = gross.minus(disc);
+    const tax = net.times(new Decimal(l.taxRate).div(100));
 
     subtotal = subtotal.plus(gross);
     discountAmount = discountAmount.plus(disc);
@@ -468,29 +468,29 @@ function calculateProrationForSubscription(
 ): { proratedAmount: string; credit: string; newCharge: string; remainingDays: number } {
   const today = new Date();
   const periodStartMs = sub.currentPeriodStart.getTime();
-  const periodEndMs   = sub.currentPeriodEnd.getTime();
-  const todayMs       = today.getTime();
+  const periodEndMs = sub.currentPeriodEnd.getTime();
+  const todayMs = today.getTime();
 
-  const totalDays     = Math.ceil((periodEndMs - periodStartMs) / 86_400_000);
+  const totalDays = Math.ceil((periodEndMs - periodStartMs) / 86_400_000);
   const remainingDays = Math.max(0, Math.ceil((periodEndMs - todayMs) / 86_400_000));
 
   const cycleAmount = new Decimal(sub.cycleAmount);
   const unitNetPrice = cycleAmount.div(sub.quantity);  // per-unit daily base
-  const dailyRate    = unitNetPrice.div(totalDays);
+  const dailyRate = unitNetPrice.div(totalDays);
 
-  const credit    = dailyRate.times(sub.quantity).times(remainingDays);
-  
+  const credit = dailyRate.times(sub.quantity).times(remainingDays);
+
   // To handle plan changes in future, we'd need to load the new plan's multiplier.
   // For now, if no plan is provided, we use the current unit net price.
   let newUnitNetPrice = unitNetPrice;
   const newQty = newQuantity ?? sub.quantity;
   const newCharge = newUnitNetPrice.times(newQty).times(remainingDays);
-  const diff      = newCharge.minus(credit);
+  const diff = newCharge.minus(credit);
 
   return {
     proratedAmount: diff.toFixed(2),
-    credit:         credit.toFixed(2),
-    newCharge:      newCharge.toFixed(2),
+    credit: credit.toFixed(2),
+    newCharge: newCharge.toFixed(2),
     remainingDays,
   };
 }
@@ -532,10 +532,10 @@ export async function modifySubscription(
         : Promise.resolve([]),
     ]);
     if (!plan) throw new BillingError('VALIDATION_ERROR', 'New subscription plan not found');
-    
+
     // Reverse the old multiplier
     const basePrice = oldPlan ? new Decimal(sub.unitPrice).div(oldPlan.priceMultiplier).toString() : sub.unitPrice;
-    
+
     newUnitNetPrice = new Decimal(basePrice).times(plan.priceMultiplier).toString();
     newBillingCycle = plan.billingCycle;
     newPlanId = plan.id;
@@ -610,12 +610,12 @@ export async function cancelSubscription(
 
   // Compute credit for the remaining part of the current period
   const today = new Date();
-  const periodEndMs   = sub.currentPeriodEnd.getTime();
+  const periodEndMs = sub.currentPeriodEnd.getTime();
   const periodStartMs = sub.currentPeriodStart.getTime();
-  const totalDays     = Math.ceil((periodEndMs - periodStartMs) / 86_400_000);
+  const totalDays = Math.ceil((periodEndMs - periodStartMs) / 86_400_000);
   const remainingDays = Math.max(0, Math.ceil((periodEndMs - today.getTime()) / 86_400_000));
-  const cycleAmount   = new Decimal(sub.cycleAmount);
-  const creditAmount  = cycleAmount.times(remainingDays).div(totalDays);
+  const cycleAmount = new Decimal(sub.cycleAmount);
+  const creditAmount = cycleAmount.times(remainingDays).div(totalDays);
 
   return db.transaction(async (tx) => {
     const [cancelled] = await tx
@@ -685,6 +685,7 @@ export async function listInvoices(
       grandTotal: schema.invoices.grandTotal,
       dueDate: schema.invoices.dueDate,
       paidAt: schema.invoices.paidAt,
+      lineSnapshot: schema.invoices.lineSnapshot,
       createdBy: schema.invoices.createdBy,
       createdAt: schema.invoices.createdAt,
       updatedAt: schema.invoices.updatedAt,
@@ -827,11 +828,11 @@ export async function invoiceNextCycle(subscriptionId: string, userId: string) {
         type: 'SUBSCRIPTION',
         status: 'ISSUED',
         lineSnapshot: [{
-           productName: sub.productName,
-           quantity: sub.quantity,
-           unitPrice: sub.unitPrice,
-           discountPercent: sub.discountPercent,
-           cycleAmount: nextEntry.amount,
+          productName: sub.productName,
+          quantity: sub.quantity,
+          unitPrice: sub.unitPrice,
+          discountPercent: sub.discountPercent,
+          cycleAmount: nextEntry.amount,
         }],
         subtotal: nextEntry.amount,
         taxAmount: taxAmount.toFixed(2),

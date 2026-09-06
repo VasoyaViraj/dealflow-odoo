@@ -23,6 +23,7 @@ import {
   DealHealthFragment,
   PortalThreadFragment,
 } from '../components/landing/Mockups';
+import DotBackground from '../components/ui/dot-background';
 
 /* ---------------------------------------------------------------------------
    Landing page.
@@ -123,7 +124,7 @@ function TopNav() {
 
 function Hero() {
   return (
-    <section className="bg-canvas">
+    <section className="relative">
       <div className="page-container pt-16 pb-12 md:pt-24 md:pb-16 text-center">
         <p className="type-eyebrow mb-5">QUOTE TO CASH, CONNECTED</p>
         <h1 className="type-display-lg md:!text-[56px] max-w-[19ch] mx-auto text-balance">
@@ -167,7 +168,7 @@ function Hero() {
 /* --- the signature coral band: the page's first voltage moment ----------- */
 function CoralSignature() {
   return (
-    <section className="bg-canvas">
+    <section className="relative">
       <div className="page-container py-section">
         <div className="card-coral p-8 md:p-12 grid lg:grid-cols-[1.1fr_1fr] gap-10 items-center">
           <div>
@@ -261,7 +262,7 @@ function FeatureTabs() {
   const tab = TABS.find((t) => t.id === active)!;
 
   return (
-    <section id="platform" className="bg-canvas">
+    <section id="platform" className="relative">
       <div className="page-container pb-section">
         <div className="max-w-[46ch] mb-10">
           <p className="type-eyebrow mb-4">THE PLATFORM</p>
@@ -360,7 +361,7 @@ const WORKFLOW_CARDS = [
 
 function WorkflowGrid() {
   return (
-    <section id="workflow" className="bg-canvas">
+    <section id="workflow" className="relative">
       <div className="page-container pb-section">
         <div className="max-w-[46ch] mb-10">
           <p className="type-eyebrow mb-4">THE WORKFLOW</p>
@@ -417,7 +418,7 @@ const ROLES = [
 
 function RolesBand() {
   return (
-    <section id="roles" className="bg-canvas">
+    <section id="roles" className="relative">
       <div className="page-container pb-section">
         <div className="card-cream p-8 md:p-12">
           <div className="grid lg:grid-cols-[1fr_1.15fr] gap-10 lg:gap-16">
@@ -450,7 +451,7 @@ function RolesBand() {
 /* --- dark navy signature card -------------------------------------------- */
 function DarkBand() {
   return (
-    <section className="bg-canvas">
+    <section className="relative">
       <div className="page-container pb-section">
         <div className="card-dark p-8 md:p-12">
           <div className="grid lg:grid-cols-[1.05fr_1fr] gap-10 items-center">
@@ -495,7 +496,7 @@ const FAQS = [
 function Faq() {
   const [open, setOpen] = useState<number | null>(0);
   return (
-    <section className="bg-canvas">
+    <section className="relative">
       <div className="page-container pb-section">
         <div className="grid lg:grid-cols-[1fr_1.6fr] gap-10 lg:gap-16">
           <div>
@@ -527,32 +528,7 @@ function Faq() {
   );
 }
 
-/* --- light-grey CTA banner ----------------------------------------------- */
-function CtaBand() {
-  return (
-    <section id="demo" className="bg-canvas">
-      <div className="page-container pb-section">
-        <div className="bg-strong rounded-lg p-8 md:p-12 text-center">
-          <h2 className="type-display-md text-balance max-w-[20ch] mx-auto">
-            See DealFlow360 in action.
-          </h2>
-          <p className="type-body-md mt-4 max-w-[52ch] mx-auto">
-            Explore a complete quote-to-cash workflow in the demo workspace.
-          </p>
-          <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
-            <Link to="/login" className="btn btn-primary btn-lg w-full sm:w-auto">
-              Open demo workspace
-              <ArrowRight size={16} />
-            </Link>
-            <a href="mailto:hello@dealflow360.app" className="btn btn-secondary btn-lg w-full sm:w-auto">
-              Talk to the team
-            </a>
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
+
 
 function Footer() {
   return (
@@ -593,7 +569,7 @@ function Footer() {
 
 export default function LandingPage() {
   return (
-    <div className="bg-canvas min-h-screen">
+    <DotBackground>
       <TopNav />
       <main>
         <Hero />
@@ -602,11 +578,9 @@ export default function LandingPage() {
         <WorkflowGrid />
         <RolesBand />
         <DarkBand />
-
         <Faq />
-        <CtaBand />
       </main>
       <Footer />
-    </div>
+    </DotBackground>
   );
 }

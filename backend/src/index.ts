@@ -13,6 +13,8 @@ import approvalsRouter from './routes/approvals.js';
 import fulfillmentRouter from './routes/fulfillment.js';
 import billingRouter from './routes/billing.js';
 import userRouter from './routes/user.js';
+import dashboardRouter from './routes/dashboard.js';
+import reportsRouter from './routes/reports.js';
 
 import { requireAuth } from './middleware/auth.js';
 
@@ -59,6 +61,12 @@ app.use('/api/v1', billingRouter);
 
 // ─── Phase 8: User profile / onboarding routes ──────────────────────────────
 app.use('/api/v1/user', userRouter);
+
+// ─── Phase 10: Dashboard / Deal Health routes ───────────────────────────────
+app.use('/api/v1/dashboard', dashboardRouter);
+
+// ─── Phase 11: Reporting routes ───────────────────────────────────────────────
+app.use('/api/v1/reports', reportsRouter);
 
 // ─── Legacy welcome endpoint ─────────────────────────────────────────────────
 app.get('/api/v1/welcome', requireAuth, (req, res) => {

@@ -9,6 +9,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { and, eq } from 'drizzle-orm';
+import bcrypt from 'bcrypt';
 import { db } from '../db/index.js';
 import {
   customers,
@@ -21,6 +22,7 @@ import {
   subscriptionPlans,
   fulfillmentSettings,
   auditLogs,
+  users,
 } from '../db/schema.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
 import { clearFulfillmentWeightsCache, clearPricingConfigCache } from '../services/configCache.js';
@@ -39,6 +41,68 @@ function logAudit(userId: string, action: string, entityType: string, entityId: 
     metadata: metadata ?? null,
   });
 }
+
+
+
+// ─── Users ───────────────────────────────────────────────────────────────────
+
+const createUserSchema = z.object({
+  firstName: z.string().min(1),
+  lastName: z.string().min(1),
+  email: z.string().email(),
+  password: z.string().min(8),
+  role: z.enum(['CUSTOMER', 'SALES_REPRESENTATIVE', 'SALES_MANAGER', 'FINANCE_OPERATIONS', 'ADMIN']),
+});
+
+router.get('/users', ...adminOnly, async (_req, res) => {
+  try {
+    const rows = await db.select({
+      id: users.id,
+      email: users.email,
+      firstName: users.firstName,
+      lastName: users.lastName,
+      role: users.role,
+      status: users.status,
+      createdAt: users.createdAt,
+    }).from(users).orderBy(users.firstName);
+    res.json({ success: true, data: rows });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
+router.post('/users', ...adminOnly, async (req, res) => {
+  try {
+    const parsed = createUserSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ success: false, error: parsed.error.format() });
+
+    const { firstName, lastName, email, password, role } = parsed.data;
+
+    const existingUser = await db.select().from(users).where(eq(users.email, email));
+    if (existingUser.length > 0) {
+      return res.status(409).json({ success: false, error: 'Email already exists' });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const passwordHash = await bcrypt.hash(password, salt);
+
+    const [row] = await db.insert(users).values({
+      email,
+      passwordHash,
+      firstName,
+      lastName,
+      role,
+      status: 'ACTIVE',
+    }).returning();
+
+    await logAudit(req.user!.id, 'USER_CREATED', 'USER', row.id, { email: row.email, role: row.role });
+    res.status(201).json({ success: true, data: { id: row.id, email: row.email, role: row.role } });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
 
 // ─── Customers ───────────────────────────────────────────────────────────────
 

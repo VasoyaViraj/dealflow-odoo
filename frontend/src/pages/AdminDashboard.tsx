@@ -3,7 +3,7 @@ import AppShell from '../components/layout/AppShell';
 import api from '../lib/api';
 import {
   Users, Package, Percent, Warehouse, RefreshCw, Truck,
-  Plus, Pencil, Check, X, AlertCircle, Boxes
+  Plus, Pencil, Check, X, AlertCircle, Boxes, BarChart3, Download
 } from 'lucide-react';
 import Loader from '../components/ui/Loader';
 
@@ -140,6 +140,7 @@ function Toast({ msg, type }: { msg: string; type: 'success' | 'error' }) {
 // ─── Tab definitions ──────────────────────────────────────────────────────────
 
 const TABS = [
+  { id: 'users',        label: 'Users',          icon: <Users size={16} /> },
   { id: 'customers',    label: 'Customers',      icon: <Users size={16} /> },
   { id: 'products',     label: 'Products',        icon: <Package size={16} /> },
   { id: 'discounts',    label: 'Discount Config', icon: <Percent size={16} /> },
@@ -147,6 +148,7 @@ const TABS = [
   { id: 'inventory',    label: 'Inventory',       icon: <Boxes size={16} /> },
   { id: 'plans',        label: 'Subscriptions',   icon: <RefreshCw size={16} /> },
   { id: 'fulfillment',  label: 'Fulfillment Rules', icon: <Truck size={16} /> },
+  { id: 'reports',      label: 'Reports',         icon: <BarChart3 size={16} /> },
 ];
 
 // ─── Main Component ───────────────────────────────────────────────────────────
@@ -190,13 +192,15 @@ export default function AdminDashboard() {
 
         {/* Tab Panels */}
         <div className="bg-canvas border border-hairline rounded-lg p-6">
+          {activeTab === 'users'      && <UsersTab showToast={showToast} />}
           {activeTab === 'customers'  && <CustomersTab showToast={showToast} />}
           {activeTab === 'products'   && <ProductsTab showToast={showToast} />}
           {activeTab === 'discounts'  && <DiscountsTab showToast={showToast} />}
           {activeTab === 'warehouses' && <WarehousesTab showToast={showToast} />}
           {activeTab === 'inventory'  && <InventoryTab showToast={showToast} />}
-          {activeTab === 'plans'      && <PlansTab showToast={showToast} />}
-          {activeTab === 'fulfillment' && <FulfillmentRulesTab showToast={showToast} />}
+          { activeTab === 'plans'      && <PlansTab showToast={showToast} /> }
+          { activeTab === 'fulfillment' && <FulfillmentRulesTab showToast={showToast} /> }
+          { activeTab === 'reports'    && <ReportsTab showToast={showToast} /> }
         </div>
       </div>
 
@@ -933,6 +937,247 @@ function PlansTab({ showToast }: { showToast: (m: string, t?: 'success' | 'error
               <p className="text-xs text-line-strong mt-3">Multiplier: <span className="text-subtle font-mono">{r.priceMultiplier}×</span></p>
             </div>
           ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Reports Tab ──────────────────────────────────────────────────────────────
+
+function ReportsTab({ showToast }: { showToast: (m: string, t?: 'success' | 'error') => void }) {
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [filters, setFilters] = useState({
+    startDate: '', endDate: '', salesRepId: '', status: '', category: ''
+  });
+  const [salesReps, setSalesReps] = useState<any[]>([]);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const q = new URLSearchParams(filters as any).toString();
+      const [reportsRes, repsRes] = await Promise.all([
+        api.get(`/reports?${q}`),
+        api.get('/admin/users').catch(() => ({ data: { data: [] } }))
+      ]);
+      setData(reportsRes.data.data);
+      setSalesReps(repsRes.data.data.filter((u: any) => u.role === 'SALES_REPRESENTATIVE'));
+    } catch {
+      // handled
+    } finally {
+      setLoading(false);
+    }
+  }, [filters]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const handleExport = () => {
+    const q = new URLSearchParams(filters as any).toString();
+    api.get(`/reports/export?${q}`, { responseType: 'blob' })
+      .then(res => {
+        const url = window.URL.createObjectURL(new Blob([res.data]));
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', 'dealflow360_analytics.xlsx');
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+      })
+      .catch(() => showToast('Failed to export', 'error'));
+  };
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-5">
+        <div>
+          <SectionHeader title="Analytics & Reporting" />
+          <p className="text-sm text-subtle">Review sales performance and export data.</p>
+        </div>
+        <button onClick={handleExport} className="flex items-center gap-2 bg-success text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-success/90">
+          <Download size={16} /> Export to Excel
+        </button>
+      </div>
+
+      <div className="grid grid-cols-5 gap-3 mb-8 bg-soft p-4 rounded-xl border border-hairline">
+        <label className="block text-xs">
+          <span className="block text-subtle mb-1">Start Date</span>
+          <input type="date" value={filters.startDate} onChange={e => setFilters(f => ({ ...f, startDate: e.target.value }))} className="w-full bg-white border border-hairline rounded px-2 py-1.5 focus:outline-none" />
+        </label>
+        <label className="block text-xs">
+          <span className="block text-subtle mb-1">End Date</span>
+          <input type="date" value={filters.endDate} onChange={e => setFilters(f => ({ ...f, endDate: e.target.value }))} className="w-full bg-white border border-hairline rounded px-2 py-1.5 focus:outline-none" />
+        </label>
+        <label className="block text-xs">
+          <span className="block text-subtle mb-1">Sales Rep</span>
+          <select value={filters.salesRepId} onChange={e => setFilters(f => ({ ...f, salesRepId: e.target.value }))} className="w-full bg-white border border-hairline rounded px-2 py-1.5 focus:outline-none">
+            <option value="">All Reps</option>
+            {salesReps.map(r => <option key={r.id} value={r.id}>{r.firstName} {r.lastName}</option>)}
+          </select>
+        </label>
+        <label className="block text-xs">
+          <span className="block text-subtle mb-1">Approval Status</span>
+          <select value={filters.status} onChange={e => setFilters(f => ({ ...f, status: e.target.value }))} className="w-full bg-white border border-hairline rounded px-2 py-1.5 focus:outline-none">
+            <option value="">All</option>
+            <option value="APPROVED">APPROVED</option>
+            <option value="CONFIRMED">CONFIRMED</option>
+            <option value="REJECTED">REJECTED</option>
+          </select>
+        </label>
+        <label className="block text-xs">
+          <span className="block text-subtle mb-1">Category</span>
+          <select value={filters.category} onChange={e => setFilters(f => ({ ...f, category: e.target.value }))} className="w-full bg-white border border-hairline rounded px-2 py-1.5 focus:outline-none">
+            <option value="">All</option>
+            <option value="HARDWARE">Hardware</option>
+            <option value="SERVICES">Services</option>
+            <option value="SUBSCRIPTION">Subscription</option>
+          </select>
+        </label>
+      </div>
+
+      {loading || !data ? (
+        <div className="py-10"><Loader loading={true} /></div>
+      ) : (
+        <div className="grid grid-cols-3 gap-6">
+          <div className="bg-white border border-hairline p-5 rounded-xl shadow-sm">
+            <p className="text-sm font-medium text-subtle mb-1">Total Revenue (Confirmed)</p>
+            <p className="text-3xl font-bold text-link">₹{data.revenue.toLocaleString()}</p>
+          </div>
+          <div className="bg-white border border-hairline p-5 rounded-xl shadow-sm">
+            <p className="text-sm font-medium text-subtle mb-1">Total Orders (Confirmed)</p>
+            <p className="text-3xl font-bold text-ink">{data.orders}</p>
+          </div>
+          <div className="bg-white border border-hairline p-5 rounded-xl shadow-sm">
+            <p className="text-sm font-medium text-subtle mb-1">Total Quotes</p>
+            <p className="text-3xl font-bold text-ink">{data.quotes}</p>
+          </div>
+          <div className="bg-white border border-hairline p-5 rounded-xl shadow-sm">
+            <p className="text-sm font-medium text-subtle mb-1">Average Discount</p>
+            <p className="text-3xl font-bold text-coral">{data.averageDiscount}%</p>
+          </div>
+          <div className="bg-white border border-hairline p-5 rounded-xl shadow-sm">
+            <p className="text-sm font-medium text-subtle mb-1">Average Margin</p>
+            <p className="text-3xl font-bold text-success">{data.averageMargin}%</p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Users Tab ────────────────────────────────────────────────────────────────
+
+function UsersTab({ showToast }: { showToast: (m: string, t?: 'success' | 'error') => void }) {
+  const [users, setUsers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isCreating, setIsCreating] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({ firstName: '', lastName: '', email: '', password: '', role: 'SALES_REPRESENTATIVE' });
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const r = await api.get('/admin/users');
+      setUsers(r.data.data);
+    } catch {
+      // handled
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      await api.post('/admin/users', form);
+      showToast('User created successfully');
+      setIsCreating(false);
+      setForm({ firstName: '', lastName: '', email: '', password: '', role: 'SALES_REPRESENTATIVE' });
+      load();
+    } catch (err: any) {
+      showToast(err.response?.data?.error || 'Failed to create user', 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-5">
+        <div>
+          <SectionHeader title="Users" />
+          <p className="text-sm text-subtle">Manage system access and roles.</p>
+        </div>
+        {!isCreating && (
+          <button
+            onClick={() => setIsCreating(true)}
+            className="flex items-center gap-2 bg-ink text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-ink-active"
+          >
+            <Plus size={16} /> New User
+          </button>
+        )}
+      </div>
+
+      {isCreating && (
+        <div className="bg-soft border border-hairline p-5 rounded-xl mb-6">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="font-semibold text-ink">Create New User</h3>
+            <button onClick={() => setIsCreating(false)} className="text-subtle hover:text-ink"><X size={16} /></button>
+          </div>
+          <form onSubmit={handleSubmit} className="grid grid-cols-2 gap-4">
+            <input required placeholder="First Name" value={form.firstName} onChange={e => setForm(f => ({ ...f, firstName: e.target.value }))} className="bg-white border border-hairline rounded px-3 py-2 text-sm focus:outline-none" />
+            <input required placeholder="Last Name" value={form.lastName} onChange={e => setForm(f => ({ ...f, lastName: e.target.value }))} className="bg-white border border-hairline rounded px-3 py-2 text-sm focus:outline-none" />
+            <input required type="email" placeholder="Email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} className="bg-white border border-hairline rounded px-3 py-2 text-sm focus:outline-none" />
+            <input required type="password" placeholder="Password" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} className="bg-white border border-hairline rounded px-3 py-2 text-sm focus:outline-none min-length-8" />
+            <select value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value }))} className="bg-white border border-hairline rounded px-3 py-2 text-sm focus:outline-none col-span-2">
+              <option value="CUSTOMER">Customer</option>
+              <option value="SALES_REPRESENTATIVE">Sales Representative</option>
+              <option value="SALES_MANAGER">Sales Manager</option>
+              <option value="FINANCE_OPERATIONS">Finance Operations</option>
+              <option value="ADMIN">Admin</option>
+            </select>
+            <div className="col-span-2 flex justify-end">
+              <button disabled={saving} type="submit" className="bg-link text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-link/90 disabled:opacity-50">
+                {saving ? 'Saving...' : 'Create'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {loading ? (
+        <div className="py-10"><Loader loading={true} /></div>
+      ) : (
+        <div className="bg-white border border-hairline rounded-xl overflow-hidden shadow-sm">
+          <table className="w-full text-left text-sm">
+            <thead className="bg-soft text-subtle font-medium border-b border-hairline">
+              <tr>
+                <th className="px-4 py-3">Name</th>
+                <th className="px-4 py-3">Email</th>
+                <th className="px-4 py-3">Role</th>
+                <th className="px-4 py-3">Status</th>
+                <th className="px-4 py-3">Created</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-hairline">
+              {users.map(u => (
+                <tr key={u.id} className="hover:bg-soft/50 transition-colors">
+                  <td className="px-4 py-3 text-ink font-medium">{u.firstName} {u.lastName}</td>
+                  <td className="px-4 py-3 text-subtle">{u.email}</td>
+                  <td className="px-4 py-3"><span className="px-2 py-0.5 bg-soft border border-hairline rounded text-xs font-mono">{u.role}</span></td>
+                  <td className="px-4 py-3">
+                    <span className={`px-2 py-0.5 rounded text-xs font-medium ${u.status === 'ACTIVE' ? 'bg-success/10 text-success' : 'bg-warning/10 text-warning'}`}>
+                      {u.status}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-subtle">{new Date(u.createdAt).toLocaleDateString()}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
     </div>

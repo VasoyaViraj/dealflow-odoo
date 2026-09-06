@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import {
   FileText, CheckCircle, Clock, XCircle, AlertTriangle,
-  CreditCard, ChevronDown, ChevronUp,
+  CreditCard, ChevronDown, ChevronUp, Download
 } from 'lucide-react';
+import api from '../../lib/api';
 import type { Invoice, InvoiceLineSnapshot } from '../../types/billing';
 
 // ─── Formatters ───────────────────────────────────────────────────────────────
@@ -95,11 +96,34 @@ interface InvoiceCardProps {
 
 export function InvoiceCard({ invoice, canPay, onPay, paying }: InvoiceCardProps) {
   const [expanded, setExpanded] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+
+  const downloadPdf = async () => {
+    setDownloading(true);
+    try {
+      const res = await api.get(`/invoices/${invoice.id}/pdf`, { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `Invoice-${invoice.invoiceNumber}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode?.removeChild(link);
+    } catch {
+      // handled by parent toast optionally, but here we can just log or add toast prop
+      console.error('Failed to download PDF');
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   return (
     <div className="bg-canvas border border-hairline rounded-lg overflow-hidden">
       {/* Header stripe */}
-      <div className="flex items-center justify-between px-5 py-4 border-b border-hairline">
+      <div 
+        className="flex items-center justify-between px-5 py-4 border-b border-hairline cursor-pointer hover:bg-soft transition-colors"
+        onClick={() => setExpanded(e => !e)}
+      >
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-md bg-link/10 border border-link/30 flex items-center justify-center">
             <FileText size={16} className="text-link" />
@@ -109,15 +133,18 @@ export function InvoiceCard({ invoice, canPay, onPay, paying }: InvoiceCardProps
             <p className="text-sm font-semibold text-ink">One-time Invoice</p>
           </div>
         </div>
-        <div className="flex items-center gap-3">
-          <StatusPill status={invoice.status} />
+        <div className="flex items-center gap-3" onClick={e => e.stopPropagation()}>
           <button
-            onClick={() => setExpanded(e => !e)}
-            className="text-subtle hover:text-ink transition-colors p-1"
-            aria-label="Toggle invoice details"
+            onClick={downloadPdf}
+            disabled={downloading}
+            className="flex items-center gap-2 px-3 py-1.5 bg-canvas border border-hairline hover:border-line-strong text-ink rounded text-xs transition font-medium disabled:opacity-50"
           >
-            {expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+            <Download size={12} /> {downloading ? 'Downloading...' : 'PDF'}
           </button>
+          <StatusPill status={invoice.status} />
+          <div className="text-subtle p-1">
+            {expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+          </div>
         </div>
       </div>
 

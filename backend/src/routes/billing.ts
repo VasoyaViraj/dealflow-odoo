@@ -19,6 +19,7 @@
 import { Router, type Request, type Response } from 'express';
 import { z } from 'zod';
 import { eq } from 'drizzle-orm';
+import PDFDocument from 'pdfkit';
 import { requireAuth } from '../middleware/auth.js';
 import { BillingError } from '../services/billing/errors.js';
 import * as billingEngine from '../services/billing/billingEngine.js';
@@ -163,6 +164,69 @@ router.get('/invoices/:id', async (req: Request, res: Response) => {
     return ok(res, invoice);
   } catch (err) {
     return fail(res, err);
+  }
+});
+
+/** GET /invoices/:id/pdf — export invoice as PDF */
+router.get('/invoices/:id/pdf', async (req: Request, res: Response) => {
+  const invoiceId = String(req.params.id);
+  try {
+    const [invoice] = await db
+      .select({
+        id: schema.invoices.id,
+        invoiceNumber: schema.invoices.invoiceNumber,
+        status: schema.invoices.status,
+        subtotal: schema.invoices.subtotal,
+        discountAmount: schema.invoices.discountAmount,
+        taxAmount: schema.invoices.taxAmount,
+        grandTotal: schema.invoices.grandTotal,
+        dueDate: schema.invoices.dueDate,
+        paidAt: schema.invoices.paidAt,
+        lineSnapshot: schema.invoices.lineSnapshot,
+        customerName: schema.customers.name,
+        customerEmail: schema.customers.email,
+      })
+      .from(schema.invoices)
+      .leftJoin(schema.customers, eq(schema.invoices.customerId, schema.customers.id))
+      .where(eq(schema.invoices.id, invoiceId));
+
+    if (!invoice) return res.status(404).json({ success: false, error: { message: 'Invoice not found' } });
+
+    const doc = new PDFDocument({ margin: 50 });
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename=Invoice-${invoice.invoiceNumber}.pdf`);
+    doc.pipe(res);
+
+    doc.fontSize(20).text('INVOICE', { align: 'right' });
+    doc.fontSize(10).text(`Invoice Number: ${invoice.invoiceNumber}`, { align: 'right' });
+    doc.text(`Status: ${invoice.status}`, { align: 'right' });
+    doc.text(`Due Date: ${new Date(invoice.dueDate).toLocaleDateString()}`, { align: 'right' });
+    doc.moveDown();
+
+    doc.fontSize(12).text('Bill To:');
+    doc.fontSize(10).text(invoice.customerName ?? 'N/A');
+    doc.text(invoice.customerEmail ?? 'N/A');
+    doc.moveDown(2);
+
+    doc.fontSize(12).text('Line Items', { underline: true });
+    doc.moveDown(0.5);
+    const lines = invoice.lineSnapshot as any[];
+    lines.forEach((line, i) => {
+      doc.fontSize(10).text(`${i + 1}. ${line.productName} (x${line.quantity})`);
+      doc.text(`Unit Price: $${line.unitPrice} | Line Total: $${line.lineTotal}`, { indent: 20 });
+      doc.moveDown(0.5);
+    });
+
+    doc.moveDown();
+    doc.fontSize(10).text(`Subtotal: $${invoice.subtotal}`, { align: 'right' });
+    doc.text(`Discount: -$${invoice.discountAmount}`, { align: 'right' });
+    doc.text(`Tax: $${invoice.taxAmount}`, { align: 'right' });
+    doc.fontSize(12).font('Helvetica-Bold').text(`Grand Total: $${invoice.grandTotal}`, { align: 'right' });
+
+    doc.end();
+  } catch (err) {
+    console.error('PDF error:', err);
+    res.status(500).json({ success: false, error: 'Internal server error' });
   }
 });
 

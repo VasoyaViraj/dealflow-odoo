@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { ArrowLeft, CheckCircle, FileText, Send, MessageSquare } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { ArrowLeft, CheckCircle, FileText, Send, MessageSquare, Download } from 'lucide-react';
 import api from '../../lib/api';
 import type { Quotation } from '../../types/quotation';
 import { StatusBadge, CategoryBadge } from '../ui/badges';
@@ -36,9 +36,35 @@ export function PortalQuotationDetail({
   const [requestSubmitted, setRequestSubmitted] = useState(false);
   const [confirmingOrder, setConfirmingOrder] = useState(false);
   const [orderConfirmed, setOrderConfirmed] = useState(false);
+  const [invoiceId, setInvoiceId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (quotation.status === 'APPROVED' || quotation.status === 'CONFIRMED') {
+      api.get(`/quotations/${quotation.id}/billing`).then(res => {
+        if (res.data.data?.invoice?.id) {
+          setInvoiceId(res.data.data.invoice.id);
+        }
+      }).catch(() => {});
+    }
+  }, [quotation.id, quotation.status]);
 
   const canNegotiate = ['SUBMITTED', 'PENDING_MANAGER', 'PENDING_FINANCE'].includes(quotation.status);
   const canConfirm = quotation.status === 'APPROVED';
+
+  const downloadPdf = async (invId: string) => {
+    try {
+      const res = await api.get(`/invoices/${invId}/pdf`, { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `Invoice-${invId}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode?.removeChild(link);
+    } catch {
+      showToast('Failed to download PDF', 'error');
+    }
+  };
 
   const handleSubmitRequest = async () => {
     if (!counterNote.trim()) {
@@ -83,6 +109,14 @@ export function PortalQuotationDetail({
           <p className="text-xs text-subtle font-mono">{quotation.quotationNumber}</p>
           <h1 className="text-xl font-bold text-ink">{quotation.customer?.name}</h1>
         </div>
+        {invoiceId && (
+          <button
+            onClick={() => downloadPdf(invoiceId)}
+            className="flex items-center gap-2 px-3 py-1.5 bg-canvas border border-hairline hover:border-line-strong text-ink rounded text-sm transition font-medium"
+          >
+            <Download size={14} /> Download Invoice
+          </button>
+        )}
         <StatusBadge status={quotation.status} />
       </div>
 

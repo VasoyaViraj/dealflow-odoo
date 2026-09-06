@@ -26,6 +26,7 @@ export default function FinanceDashboard() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [payingId, setPayingId] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
 
   const showToast = useCallback((msg: string, type: 'success' | 'error' = 'success') => {
@@ -33,9 +34,9 @@ export default function FinanceDashboard() {
     setTimeout(() => setToast(null), 4000);
   }, []);
 
-  const loadQueue = useCallback(async (page = 1) => {
+  const loadQueue = useCallback(async (page = 1, searchQuery = search) => {
     try {
-      const r = await api.get('/approval-queue', { params: { limit: 12, page } });
+      const r = await api.get('/approval-queue', { params: { limit: 12, page, search: searchQuery || undefined } });
       setQueue(r.data.data);
       if (r.data.pagination) {
         setQueueTotalPages(r.data.pagination.totalPages || 1);
@@ -65,12 +66,12 @@ export default function FinanceDashboard() {
     }
   }, []);
 
-  useEffect(() => { loadQueue(1); }, [loadQueue]);
+  useEffect(() => { loadQueue(1, search); }, [loadQueue, search]);
   useEffect(() => { loadInvoices(1); }, [loadInvoices]);
 
   const refresh = () => {
     setRefreshing(true);
-    loadQueue(queuePage);
+    loadQueue(queuePage, search);
     loadInvoices(invoicePage);
   };
 
@@ -151,15 +152,24 @@ export default function FinanceDashboard() {
         {/* ── Approvals Tab ─────────────────────────────────── */}
         {activeTab === 'approvals' && (
           <>
-            <div className="bg-mustard/20 border border-mustard/60 rounded-md px-5 py-4 flex items-start gap-3 mb-6">
-              <ShieldAlert size={18} className="text-warning mt-0.5 shrink-0" />
-              <div>
-                <p className="text-sm font-semibold text-warning">High-Risk Deals Only</p>
-                <p className="text-xs text-warning mt-1">
-                  Deals appear here only after Sales Manager approval when the risk score requires Finance sign-off.
-                  Every action is permanently recorded in the audit trail.
-                </p>
+            <div className="flex items-center justify-between mb-4">
+              <div className="bg-mustard/20 border border-mustard/60 rounded-md px-5 py-4 flex items-start gap-3 w-full max-w-2xl">
+                <ShieldAlert size={18} className="text-warning mt-0.5 shrink-0" />
+                <div>
+                  <p className="text-sm font-semibold text-warning">High-Risk Deals Only</p>
+                  <p className="text-xs text-warning mt-1">
+                    Deals appear here only after Sales Manager approval when the risk score requires Finance sign-off.
+                    Every action is permanently recorded in the audit trail.
+                  </p>
+                </div>
               </div>
+              <input
+                type="text"
+                placeholder="Filter by customer name..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="bg-canvas border border-hairline rounded-lg px-3 py-1.5 text-sm text-ink focus:outline-none focus:border-ink min-w-64 self-end mb-4"
+              />
             </div>
 
             {loadingQueue ? (

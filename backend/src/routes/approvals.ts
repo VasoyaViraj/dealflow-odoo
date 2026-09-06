@@ -13,11 +13,11 @@
 
 import { Router } from 'express';
 import { z } from 'zod';
-import { eq, sql } from 'drizzle-orm';
+import { calculateRisk } from '../services/discountRiskEngine.js';
+import { and, eq, sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { quotations, customers } from '../db/schema.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
-import { calculateRisk } from '../services/discountRiskEngine.js';
 import {
   processApprovalDecision,
   getApprovalStatus,
@@ -33,6 +33,7 @@ const INTERNAL_ROLES = ['SALES_REPRESENTATIVE', 'SALES_MANAGER', 'FINANCE_OPERAT
 const queueQuerySchema = z.object({
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().positive().max(100).default(20),
+  search: z.string().optional(),
 });
 
 /**
@@ -230,10 +231,16 @@ router.get(
         return res.json({ success: true, data: [] });
       }
 
+      const { search } = parsed.data;
+      const condition = search 
+        ? and(statusFilter, sql`${customers.name} ILIKE ${'%' + search + '%'}`) 
+        : statusFilter;
+
       const [{ count }] = await db
         .select({ count: sql<number>`count(*)` })
         .from(quotations)
-        .where(statusFilter);
+        .leftJoin(customers, eq(quotations.customerId, customers.id))
+        .where(condition);
 
       const queue = await db
         .select({
@@ -250,7 +257,7 @@ router.get(
         })
         .from(quotations)
         .leftJoin(customers, eq(quotations.customerId, customers.id))
-        .where(statusFilter)
+        .where(condition)
         .orderBy(quotations.updatedAt)
         .limit(limit)
         .offset(offset);

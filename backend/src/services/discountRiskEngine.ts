@@ -86,6 +86,9 @@ export async function calculateRisk(quotationId: string): Promise<RiskResult> {
     .select({
       lineId: quotationLines.id,
       discountPercent: quotationLines.discountPercent,
+      discountAmount: quotationLines.discountAmount,
+      allocatedDiscountAmount: quotationLines.allocatedDiscountAmount,
+      grossAmount: quotationLines.grossAmount,
       unitPrice: quotationLines.unitPrice,
       quantity: quotationLines.quantity,
       finalPrice: quotationLines.finalPrice,
@@ -117,7 +120,10 @@ export async function calculateRisk(quotationId: string): Promise<RiskResult> {
 
   // Second pass: compute deviations
   for (const line of lines) {
-    const actualDiscount = parseFloat(line.discountPercent);
+    const discountAmount = parseFloat(line.discountAmount) + parseFloat(line.allocatedDiscountAmount);
+    const grossAmount = parseFloat(line.grossAmount);
+    const actualDiscount = grossAmount > 0 ? (discountAmount / grossAmount) * 100 : parseFloat(line.discountPercent);
+
     const categoryLimit = categoryLimitMap[line.productCategory] ?? 100;
 
     // Effective allowed = MIN(tier limit, category limit)

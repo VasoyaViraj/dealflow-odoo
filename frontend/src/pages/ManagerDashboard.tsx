@@ -28,11 +28,12 @@ export default function ManagerDashboard() {
   const [totalPages, setTotalPages] = useState(1);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [search, setSearch] = useState('');
 
-  const load = useCallback(async (page = 1) => {
+  const load = useCallback(async (page = 1, searchQuery = search) => {
     try {
       const [queueRes, healthRes] = await Promise.all([
-        api.get('/approval-queue', { params: { limit: 12, page } }),
+        api.get('/approval-queue', { params: { limit: 12, page, search: searchQuery || undefined } }),
         api.get('/dashboard/deal-health')
       ]);
       setQueue(queueRes.data.data);
@@ -49,11 +50,11 @@ export default function ManagerDashboard() {
     }
   }, []);
 
-  useEffect(() => { load(1); }, [load]);
+  useEffect(() => { load(1, search); }, [load, search]);
 
   const refresh = () => {
     setRefreshing(true);
-    load(currentPage);
+    load(currentPage, search);
   };
 
   const handleDecision = () => {
@@ -148,7 +149,16 @@ export default function ManagerDashboard() {
 
             {/* Approval Queue Section */}
             <div>
-              <h2 className="text-lg font-semibold text-ink mb-4">Approval Queue</h2>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold text-ink">Approval Queue</h2>
+                <input
+                  type="text"
+                  placeholder="Filter by customer name..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="bg-canvas border border-hairline rounded-lg px-3 py-1.5 text-sm text-ink focus:outline-none focus:border-ink min-w-64"
+                />
+              </div>
               {queue.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12 text-center bg-soft border border-hairline rounded-xl">
                   <div className="w-16 h-16 rounded-lg bg-success/10 border border-success/30 flex items-center justify-center mb-4">

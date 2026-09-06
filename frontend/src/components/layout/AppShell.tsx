@@ -21,11 +21,11 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { label: 'Admin Panel',    to: '/admin',   icon: <Settings size={17} />,      roles: ['ADMIN'] },
-  { label: 'Sales Workspace', to: '/sales',   icon: <ShoppingCart size={17} />,  roles: ['SALES_REPRESENTATIVE'] },
-  { label: 'Approvals',      to: '/manager', icon: <CheckSquare size={17} />,   roles: ['SALES_MANAGER'] },
-  { label: 'Finance',        to: '/finance', icon: <DollarSign size={17} />,    roles: ['FINANCE_OPERATIONS'] },
+  { label: 'Sales Workspace', to: '/sales',   icon: <ShoppingCart size={17} />,  roles: ['SALES_REPRESENTATIVE', 'ADMIN'] },
+  { label: 'Approvals',      to: '/manager', icon: <CheckSquare size={17} />,   roles: ['SALES_MANAGER', 'ADMIN'] },
+  { label: 'Finance',        to: '/finance', icon: <DollarSign size={17} />,    roles: ['FINANCE_OPERATIONS', 'ADMIN'] },
   { label: 'Fulfillment',    to: '/fulfillment', icon: <Truck size={17} />,     roles: ['FINANCE_OPERATIONS', 'ADMIN'] },
-  { label: 'My Portal',      to: '/portal',  icon: <Globe size={17} />,         roles: ['CUSTOMER'] },
+  { label: 'My Portal',      to: '/portal',  icon: <Globe size={17} />,         roles: ['CUSTOMER', 'ADMIN'] },
 ];
 
 function roleLabel(role: AuthUser['role']) {

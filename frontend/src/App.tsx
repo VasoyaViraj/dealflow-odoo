@@ -35,7 +35,7 @@ function App() {
             <Route
               path="/sales/*"
               element={
-                <RoleGuard roles={['SALES_REPRESENTATIVE']}>
+                <RoleGuard roles={['SALES_REPRESENTATIVE', 'ADMIN']}>
                   <SalesWorkspace />
                 </RoleGuard>
               }
@@ -45,7 +45,7 @@ function App() {
             <Route
               path="/manager/*"
               element={
-                <RoleGuard roles={['SALES_MANAGER']}>
+                <RoleGuard roles={['SALES_MANAGER', 'ADMIN']}>
                   <ManagerDashboard />
                 </RoleGuard>
               }
@@ -55,7 +55,7 @@ function App() {
             <Route
               path="/finance/*"
               element={
-                <RoleGuard roles={['FINANCE_OPERATIONS']}>
+                <RoleGuard roles={['FINANCE_OPERATIONS', 'ADMIN']}>
                   <FinanceDashboard />
                 </RoleGuard>
               }
@@ -77,7 +77,7 @@ function App() {
             <Route
               path="/portal/*"
               element={
-                <RoleGuard roles={['CUSTOMER']}>
+                <RoleGuard roles={['CUSTOMER', 'ADMIN']}>
                   <CustomerPortal />
                 </RoleGuard>
               }

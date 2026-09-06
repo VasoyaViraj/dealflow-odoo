@@ -429,13 +429,22 @@ function CustomersTab({ showToast }: { showToast: (m: string, t?: 'success' | 'e
 
 function ProductsTab({ showToast }: { showToast: (m: string, t?: 'success' | 'error') => void }) {
   const [rows, setRows] = useState<Product[]>([]);
+  const [warehouses, setWarehouses] = useState<WarehouseRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ name: '', sku: '', description: '', category: 'HARDWARE', unitPrice: '', costPrice: '', taxRate: '18' });
+  const [initialInventory, setInitialInventory] = useState<{ warehouseId: string; quantity: number }[]>([]);
 
   const load = useCallback(async () => {
     setLoading(true);
-    try { const r = await api.get('/admin/products'); setRows(r.data.data); }
+    try { 
+      const [r, w] = await Promise.all([
+        api.get('/admin/products'),
+        api.get('/admin/warehouses')
+      ]);
+      setRows(r.data.data); 
+      setWarehouses(w.data.data.filter((x: any) => x.isActive));
+    }
     finally { setLoading(false); }
   }, []);
 
@@ -443,10 +452,12 @@ function ProductsTab({ showToast }: { showToast: (m: string, t?: 'success' | 'er
 
   const create = async () => {
     try {
-      await api.post('/admin/products', form);
+      const payload = { ...form, initialInventory: initialInventory.filter(i => i.quantity > 0) };
+      await api.post('/admin/products', payload);
       showToast(`Product "${form.name}" created`);
       setShowForm(false);
       setForm({ name: '', sku: '', description: '', category: 'HARDWARE', unitPrice: '', costPrice: '', taxRate: '18' });
+      setInitialInventory([]);
       load();
     } catch (e: any) {
       showToast(e?.response?.data?.error ?? 'Failed to create product', 'error');
@@ -481,7 +492,36 @@ function ProductsTab({ showToast }: { showToast: (m: string, t?: 'success' | 'er
             className="bg-strong border border-hairline rounded-lg px-3 py-2 text-sm text-ink focus:outline-none focus:border-ink" />
           <input placeholder="Description (optional)" value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
             className="col-span-3 bg-strong border border-hairline rounded-lg px-3 py-2 text-sm text-ink focus:outline-none focus:border-ink" />
-          <div className="col-span-3 flex gap-2 justify-end">
+          
+          {form.category !== 'SERVICES' && form.category !== 'SUBSCRIPTION' && warehouses.length > 0 && (
+            <div className="col-span-3 border-t border-hairline pt-3 mt-1">
+              <p className="text-sm font-semibold text-ink mb-3">Initial Inventory</p>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                {warehouses.map(w => {
+                  const inv = initialInventory.find(i => i.warehouseId === w.id);
+                  const qty = inv ? inv.quantity : 0;
+                  return (
+                    <div key={w.id} className="flex items-center justify-between bg-strong border border-hairline rounded-lg px-3 py-2">
+                      <span className="text-sm text-ink truncate mr-2" title={w.name}>{w.name}</span>
+                      <input 
+                        type="number" min="0" value={qty || ''} placeholder="0"
+                        onChange={e => {
+                          const val = Math.max(0, parseInt(e.target.value) || 0);
+                          setInitialInventory(prev => {
+                            const filtered = prev.filter(p => p.warehouseId !== w.id);
+                            return val > 0 ? [...filtered, { warehouseId: w.id, quantity: val }] : filtered;
+                          });
+                        }}
+                        className="w-16 bg-canvas border border-hairline rounded px-2 py-1 text-sm text-ink focus:outline-none focus:border-ink" 
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          <div className="col-span-3 flex gap-2 justify-end mt-2">
             <button onClick={() => setShowForm(false)} className="px-4 py-2 text-sm text-subtle hover:text-ink">Cancel</button>
             <button onClick={create} className="px-4 py-2 bg-ink hover:bg-ink-active text-white text-sm rounded-lg font-medium">Save</button>
           </div>

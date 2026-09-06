@@ -266,6 +266,10 @@ const createProductSchema = z.object({
   unitPrice: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Must be a valid decimal'),
   costPrice: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Must be a valid decimal'),
   taxRate: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Must be a valid decimal').default('18'),
+  initialInventory: z.array(z.object({
+    warehouseId: z.string().uuid(),
+    quantity: z.number().int().min(0),
+  })).optional(),
 });
 
 router.get('/products', ...adminOnly, async (_req, res) => {
@@ -282,7 +286,22 @@ router.post('/products', ...adminOnly, async (req, res) => {
     const parsed = createProductSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ success: false, error: parsed.error.format() });
 
-    const [row] = await db.insert(products).values(parsed.data).returning();
+    const { initialInventory, ...productData } = parsed.data;
+
+    const row = await db.transaction(async (tx) => {
+      const [product] = await tx.insert(products).values(productData).returning();
+      
+      if (initialInventory && initialInventory.length > 0) {
+        const inventoryData = initialInventory.map(inv => ({
+          productId: product.id,
+          warehouseId: inv.warehouseId,
+          quantity: inv.quantity
+        }));
+        await tx.insert(inventory).values(inventoryData);
+      }
+      return product;
+    });
+
     await logAudit(req.user!.id, 'PRODUCT_CREATED', 'PRODUCT', row.id, { name: row.name });
     res.status(201).json({ success: true, data: row });
   } catch (err) {

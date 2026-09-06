@@ -7,20 +7,55 @@ import ExcelJS from 'exceljs';
 
 const router = Router();
 
+async function buildReportFilters(queryObj: any) {
+  const { startDate, endDate, salesRepId, status, category } = queryObj;
+  const filters = [];
+  if (startDate) filters.push(gte(quotations.createdAt, new Date(startDate as string)));
+  if (endDate) {
+    const end = new Date(endDate as string);
+    end.setHours(23, 59, 59, 999);
+    filters.push(lte(quotations.createdAt, end));
+  }
+  if (salesRepId) filters.push(eq(quotations.salesRepId, salesRepId as string));
+  if (status) filters.push(eq(quotations.status, status as any));
+
+  let isEmptyCategory = false;
+  if (category) {
+    const matchingQuotes = await db.select({ quotationId: quotationLines.quotationId })
+      .from(quotationLines)
+      .where(eq(quotationLines.category, category as any))
+      .groupBy(quotationLines.quotationId);
+
+    const matchingQuoteIds = matchingQuotes.map(q => q.quotationId);
+    
+    if (matchingQuoteIds.length > 0) {
+      filters.push(inArray(quotations.id, matchingQuoteIds));
+    } else {
+      isEmptyCategory = true;
+      filters.push(sql`1 = 0`);
+    }
+  }
+
+  return { filters, isEmptyCategory };
+}
+
+
 // ─── GET /api/v1/reports ───────────────────────────────────────────────────
 router.get('/', requireAuth, requireRole(['ADMIN']), async (req, res) => {
   try {
-    const { startDate, endDate, salesRepId, status, category } = req.query;
-
-    const filters = [];
-    if (startDate) filters.push(gte(quotations.createdAt, new Date(startDate as string)));
-    if (endDate) {
-      const end = new Date(endDate as string);
-      end.setHours(23, 59, 59, 999);
-      filters.push(lte(quotations.createdAt, end));
+    const { filters, isEmptyCategory } = await buildReportFilters(req.query);
+    if (isEmptyCategory) {
+      return res.json({
+        success: true,
+        data: {
+          revenue: 0,
+          quotes: 0,
+          orders: 0,
+          averageDiscount: 0,
+          averageMargin: 0
+        }
+      });
     }
-    if (salesRepId) filters.push(eq(quotations.salesRepId, salesRepId as string));
-    if (status) filters.push(eq(quotations.status, status as any));
 
     let query = db.select({
       id: quotations.id,
@@ -30,34 +65,9 @@ router.get('/', requireAuth, requireRole(['ADMIN']), async (req, res) => {
       status: quotations.status,
     }).from(quotations);
 
-    // If filtering by category, we must ensure the quotation has at least one line of that category
-    if (category) {
-      const matchingQuotes = await db.select({ quotationId: quotationLines.quotationId })
-        .from(quotationLines)
-        .where(eq(quotationLines.category, category as any))
-        .groupBy(quotationLines.quotationId);
-
-      const matchingQuoteIds = matchingQuotes.map(q => q.quotationId);
-      
-      if (matchingQuoteIds.length === 0) {
-        // Return zeros if no matching quotes for this category
-        return res.json({
-          success: true,
-          data: {
-            revenue: 0,
-            quotes: 0,
-            orders: 0,
-            averageDiscount: 0,
-            averageMargin: 0
-          }
-        });
-      }
-      
-      filters.push(inArray(quotations.id, matchingQuoteIds));
-    }
-
     if (filters.length > 0) {
       query.where(and(...filters));
+
     }
 
     const rows = await query;
@@ -99,17 +109,7 @@ router.get('/', requireAuth, requireRole(['ADMIN']), async (req, res) => {
 // ─── GET /api/v1/reports/export ─────────────────────────────────────────────
 router.get('/export', requireAuth, requireRole(['ADMIN']), async (req, res) => {
   try {
-    const { startDate, endDate, salesRepId, status, category } = req.query;
-
-    const filters = [];
-    if (startDate) filters.push(gte(quotations.createdAt, new Date(startDate as string)));
-    if (endDate) {
-      const end = new Date(endDate as string);
-      end.setHours(23, 59, 59, 999);
-      filters.push(lte(quotations.createdAt, end));
-    }
-    if (salesRepId) filters.push(eq(quotations.salesRepId, salesRepId as string));
-    if (status) filters.push(eq(quotations.status, status as any));
+    const { filters } = await buildReportFilters(req.query);
 
     let query = db.select({
       quotationNumber: quotations.quotationNumber,
@@ -124,21 +124,6 @@ router.get('/export', requireAuth, requireRole(['ADMIN']), async (req, res) => {
     .from(quotations)
     .leftJoin(customers, eq(quotations.customerId, customers.id))
     .leftJoin(users, eq(quotations.salesRepId, users.id));
-
-    if (category) {
-      const matchingQuotes = await db.select({ quotationId: quotationLines.quotationId })
-        .from(quotationLines)
-        .where(eq(quotationLines.category, category as any))
-        .groupBy(quotationLines.quotationId);
-
-      const matchingQuoteIds = matchingQuotes.map(q => q.quotationId);
-      
-      if (matchingQuoteIds.length > 0) {
-        filters.push(inArray(quotations.id, matchingQuoteIds));
-      } else {
-        filters.push(sql`1 = 0`); // Force empty result
-      }
-    }
 
     if (filters.length > 0) {
       query.where(and(...filters));

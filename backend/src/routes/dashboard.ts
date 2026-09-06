@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { sql, eq, notInArray, and, or, inArray } from 'drizzle-orm';
+import { sql, eq, and, inArray } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { quotations, users, customers } from '../db/schema.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
@@ -7,7 +7,7 @@ import { requireAuth, requireRole } from '../middleware/auth.js';
 const router = Router();
 
 // ─── GET /api/v1/dashboard/deal-health ─────────────────────────────────────────
-router.get('/deal-health', requireAuth, requireRole(['SALES_MANAGER', 'ADMIN']), async (req, res) => {
+router.get('/deal-health', requireAuth, requireRole(['SALES_MANAGER', 'ADMIN']), async (_req, res) => {
   try {
     const ACTIVE_STATUSES = [
       'DRAFT', 'SUBMITTED', 'RISK_CALCULATED',

@@ -42,6 +42,7 @@ type DbLike = typeof db | PgTransaction<NodePgQueryResultHKT, typeof schema, Ext
 
 /** Allocate the next invoice number inside a transaction. */
 async function nextInvoiceNumber(tx: DbLike): Promise<string> {
+  //tx = transactions
   const [row] = await tx
     .update(schema.invoiceSequence)
     .set({ lastValue: sql`${schema.invoiceSequence.lastValue} + 1` })
@@ -695,7 +696,7 @@ export async function listInvoices(
     .limit(filters.limit)
     .offset(offset);
 
-  const whereClause = conditions.length > 0 ? (conditions.length === 1 ? conditions[0] : and(...conditions)) : undefined;
+  const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
   const [{ count }] = await db
     .select({ count: sql<number>`count(*)` })
@@ -752,7 +753,7 @@ export async function listSubscriptions(
     .limit(filters.limit)
     .offset(offset);
 
-  const whereClause = conditions.length > 0 ? (conditions.length === 1 ? conditions[0] : and(...conditions)) : undefined;
+  const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
   const [{ count }] = await db
     .select({ count: sql<number>`count(*)` })

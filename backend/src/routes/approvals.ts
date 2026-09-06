@@ -15,7 +15,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { eq, sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
-import { quotations, users, customers } from '../db/schema.js';
+import { quotations, customers } from '../db/schema.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
 import { calculateRisk } from '../services/discountRiskEngine.js';
 import {

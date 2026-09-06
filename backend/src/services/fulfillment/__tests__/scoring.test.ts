@@ -6,7 +6,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { generatePlans } from '../planner.js';
-import { buildShipments, scorePlans, buildReasons } from '../scoring.js';
+import { buildShipments, scorePlans } from '../scoring.js';
 import { DEFAULT_WEIGHTS, type CandidatePlan, type DemandLine, type ScoringWeights, type WarehouseStock } from '../types.js';
 
 const LAPTOP = 'prod-laptop';

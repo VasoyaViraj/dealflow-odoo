@@ -53,14 +53,37 @@ function roleBadgeColor(role: AuthUser['role']) {
 }
 
 export function DealFlowMark({ size = 32 }: { size?: number }) {
-  /* The mark is three stacked deal stages narrowing to a close — drawn rather
-     than iconified so it holds up at nav size and at hero size. */
+  /* A refined, simple geometric logo of isometric layers representing
+     platform structure and deal workflow stages (Build -> Approve -> Fulfill).
+     Uses the brand's core signature colors. */
   return (
     <svg width={size} height={size} viewBox="0 0 32 32" fill="none" aria-hidden="true">
-      <rect width="32" height="32" rx="8" fill="#181d26" />
-      <rect x="7" y="9" width="18" height="3.2" rx="1.6" fill="#fcab79" />
-      <rect x="7" y="14.4" width="13" height="3.2" rx="1.6" fill="#a8d8c4" />
-      <rect x="7" y="19.8" width="8" height="3.2" rx="1.6" fill="#ffffff" />
+      {/* Top Layer: Platform (Ink) */}
+      <path
+        d="M16 6 L6 11 L16 16 L26 11 Z"
+        fill="#181d26"
+        stroke="#181d26"
+        strokeWidth="2.5"
+        strokeLinejoin="round"
+      />
+      {/* Middle Layer (Coral) */}
+      <path
+        d="M6 16.5 L16 21.5 L26 16.5"
+        fill="none"
+        stroke="#aa2d00"
+        strokeWidth="3"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      {/* Bottom Layer (Mint) */}
+      <path
+        d="M6 22 L16 27 L26 22"
+        fill="none"
+        stroke="#a8d8c4"
+        strokeWidth="3"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }

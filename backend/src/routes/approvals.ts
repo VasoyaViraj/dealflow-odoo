@@ -13,7 +13,7 @@
 
 import { Router } from 'express';
 import { z } from 'zod';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { quotations, users, customers } from '../db/schema.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
@@ -230,6 +230,11 @@ router.get(
         return res.json({ success: true, data: [] });
       }
 
+      const [{ count }] = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(quotations)
+        .where(statusFilter);
+
       const queue = await db
         .select({
           id: quotations.id,
@@ -253,7 +258,7 @@ router.get(
       res.json({
         success: true,
         data: queue,
-        pagination: { page, limit },
+        pagination: { page, limit, totalPages: Math.max(1, Math.ceil(count / limit)), total: count },
       });
     } catch (err: any) {
       console.error('Approval queue error:', err);

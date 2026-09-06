@@ -49,7 +49,7 @@ export default function FulfillmentWorkspace() {
       setOrders(f.data.data);
       setSelectedId((current) => current ?? q.data.data[0]?.id ?? null);
       if (q.data.pagination) {
-        setTotalPages(q.data.pagination.pages || 1);
+        setTotalPages(q.data.pagination.totalPages || 1);
         setCurrentPage(q.data.pagination.page || 1);
       }
     } finally {

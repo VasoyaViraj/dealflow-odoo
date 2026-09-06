@@ -38,7 +38,7 @@ export default function FinanceDashboard() {
       const r = await api.get('/approval-queue', { params: { limit: 12, page } });
       setQueue(r.data.data);
       if (r.data.pagination) {
-        setQueueTotalPages(r.data.pagination.pages || 1);
+        setQueueTotalPages(r.data.pagination.totalPages || 1);
         setQueuePage(r.data.pagination.page || 1);
       }
     } catch {
@@ -55,7 +55,7 @@ export default function FinanceDashboard() {
       const r = await api.get('/invoices', { params: { limit: 12, page } });
       setInvoices(r.data.data);
       if (r.data.pagination) {
-        setInvoiceTotalPages(r.data.pagination.pages || 1);
+        setInvoiceTotalPages(r.data.pagination.totalPages || 1);
         setInvoicePage(r.data.pagination.page || 1);
       }
     } catch {

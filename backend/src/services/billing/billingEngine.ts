@@ -695,13 +695,15 @@ export async function listInvoices(
     .limit(filters.limit)
     .offset(offset);
 
-  if (conditions.length > 0) {
-    const items = await query.where(conditions.length === 1 ? conditions[0] : and(...conditions));
-    return { items, pagination: { page: filters.page, limit: filters.limit } };
-  }
+  const whereClause = conditions.length > 0 ? (conditions.length === 1 ? conditions[0] : and(...conditions)) : undefined;
 
-  const items = await query;
-  return { items, pagination: { page: filters.page, limit: filters.limit } };
+  const [{ count }] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(schema.invoices)
+    .where(whereClause);
+
+  const items = await query.where(whereClause);
+  return { items, pagination: { page: filters.page, limit: filters.limit, totalPages: Math.max(1, Math.ceil(count / filters.limit)), total: count } };
 }
 
 // ─── listSubscriptions ────────────────────────────────────────────────────────
@@ -750,11 +752,16 @@ export async function listSubscriptions(
     .limit(filters.limit)
     .offset(offset);
 
-  const items = conditions.length > 0
-    ? await query.where(conditions.length === 1 ? conditions[0] : and(...conditions))
-    : await query;
+  const whereClause = conditions.length > 0 ? (conditions.length === 1 ? conditions[0] : and(...conditions)) : undefined;
 
-  return { items, pagination: { page: filters.page, limit: filters.limit } };
+  const [{ count }] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(schema.subscriptions)
+    .where(whereClause);
+
+  const items = await query.where(whereClause);
+
+  return { items, pagination: { page: filters.page, limit: filters.limit, totalPages: Math.max(1, Math.ceil(count / filters.limit)), total: count } };
 }
 
 // ─── getSubscription ──────────────────────────────────────────────────────────

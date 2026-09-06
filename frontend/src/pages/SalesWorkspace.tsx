@@ -1072,7 +1072,7 @@ export default function SalesWorkspace() {
       const r = await api.get('/quotations', { params: { limit: 12, page } });
       setQuotations(r.data.data);
       if (r.data.pagination) {
-        setTotalPages(r.data.pagination.pages);
+        setTotalPages(r.data.pagination.totalPages);
         setCurrentPage(r.data.pagination.page);
       }
     } catch { showToast('Failed to load quotations', 'error'); }

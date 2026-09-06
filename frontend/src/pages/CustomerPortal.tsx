@@ -27,7 +27,7 @@ export default function CustomerPortal() {
       const r = await api.get('/quotations', { params: { limit: 12, page } });
       setQuotations((r.data.data as Quotation[]).filter(q => q.status !== 'DRAFT'));
       if (r.data.pagination) {
-        setTotalPages(r.data.pagination.pages || 1);
+        setTotalPages(r.data.pagination.totalPages || 1);
         setCurrentPage(r.data.pagination.page || 1);
       }
     } catch { showToast('Failed to load quotations', 'error'); }

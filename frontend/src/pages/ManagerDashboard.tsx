@@ -37,7 +37,7 @@ export default function ManagerDashboard() {
       ]);
       setQueue(queueRes.data.data);
       if (queueRes.data.pagination) {
-        setTotalPages(queueRes.data.pagination.pages || 1);
+        setTotalPages(queueRes.data.pagination.totalPages || 1);
         setCurrentPage(queueRes.data.pagination.page || 1);
       }
       setDealHealth(healthRes.data.data);
